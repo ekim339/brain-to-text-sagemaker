@@ -1,0 +1,21 @@
+# Requirements for SageMaker training with S3 data streaming
+# This file should be used in your SageMaker training environment
+
+# Core dependencies
+torch>=2.0.0
+h5py>=3.8.0
+numpy>=1.24.0
+omegaconf>=2.3.0
+torchaudio>=2.0.0
+
+# S3 filesystem support - critical for streaming from S3
+s3fs>=2023.1.0
+boto3>=1.26.0
+botocore>=1.29.0
+
+# Data processing
+scipy>=1.10.0
+
+# Optional but recommended
+psutil>=5.9.0
+
