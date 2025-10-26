@@ -99,6 +99,7 @@ def launch_training_job(
         environment={
             'TORCH_COMPILE_DEBUG': '0',
         },
+        requirements_file="requirements_sagemaker.txt",
         # No dependencies needed - source_dir packages everything automatically
     )
     

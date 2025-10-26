@@ -2,11 +2,19 @@
 SageMaker training script that streams data directly from S3
 No local storage required - reads HDF5 files on-demand
 """
+import subprocess, sys
+
+def pip_install(pkgs):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", *pkgs])
+
+pip_install(["omegaconf", "h5py", "tqdm", "boto3"])
+
 import os
 import sys
 import argparse
 from omegaconf import OmegaConf
 from rnn_trainer_s3 import BrainToTextDecoder_Trainer_S3
+
 
 
 def main():

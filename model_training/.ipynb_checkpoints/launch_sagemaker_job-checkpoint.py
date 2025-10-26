@@ -58,11 +58,18 @@ def launch_training_job(
     print(f"Instance: {instance_type}")
     print(f"S3 Data: s3://{s3_bucket}/{s3_data_prefix}")
     
+    # Get the directory containing this script
+    import os
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Ensure config file is just the filename (not a path)
+    config_filename = os.path.basename(config_file)
+    
     # Build hyperparameters
     hyperparameters = {
         's3-bucket': s3_bucket,
         's3-data-prefix': s3_data_prefix,
-        'config-file': config_file,
+        'config-file': config_filename,
         'gpu-number': '0',
     }
     
@@ -72,10 +79,13 @@ def launch_training_job(
     if batch_size is not None:
         hyperparameters['batch-size'] = batch_size
     
+    print(f"\nSageMaker will package all files from: {script_dir}")
+    print(f"Using config file: {config_filename}")
+    
     # Define the PyTorch estimator
     estimator = PyTorch(
         entry_point='train_model_sagemaker.py',
-        source_dir='/home/ec2-user/SageMaker/brain-to-text-sagemaker/model_training/',  # Current directory containing all training code
+        source_dir=script_dir,  # Automatically packages all files in this directory
         role=role,
         instance_type=instance_type,
         instance_count=instance_count,
@@ -89,16 +99,8 @@ def launch_training_job(
         environment={
             'TORCH_COMPILE_DEBUG': '0',
         },
-        # Dependencies
-        dependencies=[
-            '/home/ec2-user/SageMaker/brain-to-text-sagemaker/model_training/rnn_trainer.py',
-            '/home/ec2-user/SageMaker/brain-to-text-sagemaker/model_training/rnn_trainer_s3.py', 
-            '/home/ec2-user/SageMaker/brain-to-text-sagemaker/model_training/rnn_model.py',
-            '/home/ec2-user/SageMaker/brain-to-text-sagemaker/model_training/dataset.py',
-            '/home/ec2-user/SageMaker/brain-to-text-sagemaker/model_training/dataset_s3.py',
-            '/home/ec2-user/SageMaker/brain-to-text-sagemaker/model_training/data_augmentations.py',
-            config_file,
-        ]
+        requirements_file="requirements_sagemaker.txt",
+        # No dependencies needed - source_dir packages everything automatically
     )
     
     print("\nStarting training job...")
