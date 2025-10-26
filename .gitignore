@@ -1,9 +1,16 @@
 # ignore python bytecode files
 *.pyc
 *.egg-info
+__pycache__/
 
 # ignore rdb files
 *.rdb
 
 # ignore ds_store files
 .DS_Store
+
+# ignore jupyter checkpoints
+.ipynb_checkpoints/
+
+# ignore sagemaker files
+.sagemakerignore
