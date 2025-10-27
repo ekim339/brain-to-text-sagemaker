@@ -280,13 +280,19 @@ class BrainToTextDecoder_Trainer:
                     {'params' : other_params, 'group_type' : 'other'}
                 ]
             
+        # Fused optimizer requires params to be on CUDA
+        # Since optimizer is created before model.to(device), params are still on CPU
+        # So we check if any parameter is already on CUDA
+        params_on_cuda = any(p.is_cuda for p in self.model.parameters())
+        use_fused = params_on_cuda and torch.cuda.is_available()
+        
         optim = torch.optim.AdamW(
             param_groups,
             lr = self.args['lr_max'],
             betas = (self.args['beta0'], self.args['beta1']),
             eps = self.args['epsilon'],
             weight_decay = self.args['weight_decay'],
-            fused = True
+            fused = use_fused  # Only use fused when params are on CUDA
         )
 
         return optim 
