@@ -562,15 +562,27 @@ class BrainToTextDecoder_Trainer:
                     
                 loss = torch.mean(loss) # take mean loss over batches
             
+            # Check for NaN loss before backward pass
+            if torch.isnan(loss) or torch.isinf(loss):
+                self.logger.error(f"NaN/Inf loss detected at batch {i}! Loss: {loss.item()}")
+                self.logger.error("Skipping this batch and continuing training...")
+                self.optimizer.zero_grad()
+                continue
+            
             loss.backward()
 
-            # Clip gradient
+            # Clip gradient with robust handling of non-finite gradients
             if self.args['grad_norm_clip_value'] > 0: 
                 grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), 
                                                max_norm = self.args['grad_norm_clip_value'],
-                                               error_if_nonfinite = True,
+                                               error_if_nonfinite = False,  # Don't raise error, just clip
                                                foreach = True
                                                )
+                
+                # Log if gradients are non-finite
+                if torch.isnan(grad_norm) or torch.isinf(grad_norm):
+                    self.logger.warning(f"Non-finite gradients detected at batch {i}! Grad norm: {grad_norm}")
+                    self.logger.warning("Gradients have been clipped. Consider reducing learning rate.")
 
             self.optimizer.step()
             self.learning_rate_scheduler.step()

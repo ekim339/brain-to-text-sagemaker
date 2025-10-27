@@ -33,18 +33,18 @@ early_stopping_val_steps: 20
 
 num_training_batches: 150000 # increased for diphone training
 lr_scheduler_type: cosine
-lr_max: 0.004 # slightly reduced for stability
+lr_max: 0.002 # reduced for 1681-class stability (was 0.004)
 lr_min: 0.0001
 lr_decay_steps: 150000
-lr_warmup_steps: 2000 # longer warmup
-lr_max_day: 0.004
+lr_warmup_steps: 3000 # longer warmup for stability
+lr_max_day: 0.002 # reduced to match lr_max
 lr_min_day: 0.0001
 lr_decay_steps_day: 150000
-lr_warmup_steps_day: 2000
+lr_warmup_steps_day: 3000 # match main warmup steps
 
 beta0: 0.9
 beta1: 0.999
-epsilon: 0.1
+epsilon: 1.0e-8  # Fixed! Was 0.1 which caused NaN gradients
 weight_decay: 0.002 # increased regularization
 weight_decay_day: 0
 seed: 10
