@@ -47,12 +47,12 @@ class GRUDecoder(nn.Module):
         self.day_layer_activation = nn.Softsign() # basically a shallower tanh 
 
         # Set weights for day layers to be identity matrices so the model can learn its own day-specific transformations
-        self.day_weights = nn.ParameterList(
-            [nn.Parameter(torch.eye(self.neural_dim)) for _ in range(self.n_days)]
-        )
-        self.day_biases = nn.ParameterList(
-            [nn.Parameter(torch.zeros(1, self.neural_dim)) for _ in range(self.n_days)]
-        )
+        # Use single tensors instead of ParameterList for torch.compile compatibility
+        day_weights_init = torch.stack([torch.eye(self.neural_dim) for _ in range(self.n_days)], dim=0)
+        self.day_weights = nn.Parameter(day_weights_init)  # Shape: (n_days, neural_dim, neural_dim)
+        
+        day_biases_init = torch.zeros(self.n_days, self.neural_dim)
+        self.day_biases = nn.Parameter(day_biases_init)  # Shape: (n_days, neural_dim)
 
         self.day_layer_dropout = nn.Dropout(input_dropout)
         
@@ -92,8 +92,9 @@ class GRUDecoder(nn.Module):
         '''
 
         # Apply day-specific layer to (hopefully) project neural data from the different days to the same latent space
-        day_weights = torch.stack([self.day_weights[i] for i in day_idx], dim=0)
-        day_biases = torch.cat([self.day_biases[i] for i in day_idx], dim=0).unsqueeze(1)
+        # Use tensor indexing for torch.compile compatibility
+        day_weights = self.day_weights[day_idx]  # Shape: (batch_size, neural_dim, neural_dim)
+        day_biases = self.day_biases[day_idx].unsqueeze(1)  # Shape: (batch_size, 1, neural_dim)
 
         x = torch.einsum("btd,bdk->btk", x, day_weights) + day_biases
         x = self.day_layer_activation(x)
