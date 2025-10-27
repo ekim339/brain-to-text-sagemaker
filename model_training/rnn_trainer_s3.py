@@ -133,6 +133,20 @@ class BrainToTextDecoder_Trainer_S3(BrainToTextDecoder_Trainer):
 
         self.logger.info(f'Using device: {self.device}')
 
+        # Determine best AMP dtype based on GPU capability
+        if torch.cuda.is_available() and self.device.type == 'cuda':
+            # Check if bfloat16 is supported (A100, A10G, H100, etc.)
+            if torch.cuda.is_bf16_supported():
+                self.amp_dtype = torch.bfloat16
+                self.logger.info('Using bfloat16 for automatic mixed precision')
+            else:
+                # T4, V100, etc. only support float16
+                self.amp_dtype = torch.float16
+                self.logger.info('Using float16 for automatic mixed precision (bfloat16 not supported on this GPU)')
+        else:
+            self.amp_dtype = torch.float32
+            self.logger.info('Using float32 (no AMP on CPU)')
+
         # Set seed
         if self.args['seed'] != -1:
             np.random.seed(self.args['seed'])

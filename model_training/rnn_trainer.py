@@ -108,7 +108,19 @@ class BrainToTextDecoder_Trainer:
 
         self.logger.info(f'Using device: {self.device}')
 
-
+        # Determine best AMP dtype based on GPU capability
+        if torch.cuda.is_available() and self.device.type == 'cuda':
+            # Check if bfloat16 is supported (A100, A10G, H100, etc.)
+            if torch.cuda.is_bf16_supported():
+                self.amp_dtype = torch.bfloat16
+                self.logger.info('Using bfloat16 for automatic mixed precision')
+            else:
+                # T4, V100, etc. only support float16
+                self.amp_dtype = torch.float16
+                self.logger.info('Using float16 for automatic mixed precision (bfloat16 not supported on this GPU)')
+        else:
+            self.amp_dtype = torch.float32
+            self.logger.info('Using float32 (no AMP on CPU)')
 
         # Set seed if provided 
         if self.args['seed'] != -1:
@@ -530,7 +542,7 @@ class BrainToTextDecoder_Trainer:
             day_indicies = batch['day_indicies'].to(self.device)
 
             # Use autocast for efficiency
-            with torch.autocast(device_type = "cuda", enabled = self.args['use_amp'], dtype = torch.bfloat16):
+            with torch.autocast(device_type = "cuda", enabled = self.args['use_amp'], dtype = self.amp_dtype):
 
                 # Apply augmentations to the data
                 features, n_time_steps = self.transform_data(features, n_time_steps, 'train')
@@ -707,7 +719,7 @@ class BrainToTextDecoder_Trainer:
             
             with torch.no_grad():
 
-                with torch.autocast(device_type = "cuda", enabled = self.args['use_amp'], dtype = torch.bfloat16):
+                with torch.autocast(device_type = "cuda", enabled = self.args['use_amp'], dtype = self.amp_dtype):
                     features, n_time_steps = self.transform_data(features, n_time_steps, 'val')
 
                     adjusted_lens = ((n_time_steps - self.args['model']['patch_size']) / self.args['model']['patch_stride'] + 1).to(torch.int32)

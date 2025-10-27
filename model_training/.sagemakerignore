@@ -1,0 +1,11 @@
+# SageMaker will exclude these files when packaging source code
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+.DS_Store
+debug_sagemaker.py
+.git/
+.gitignore
+*.ipynb
+.jupyter_notebook_config.py
+

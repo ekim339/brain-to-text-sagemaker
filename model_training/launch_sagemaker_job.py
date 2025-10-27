@@ -82,15 +82,20 @@ def launch_training_job(
     print(f"\nSageMaker will package all files from: {script_dir}")
     print(f"Using config file: {config_filename}")
     
-    # Create a .sagemakerignore file to exclude unwanted files
+    # Check if .sagemakerignore exists, create if not
     ignore_file = os.path.join(script_dir, '.sagemakerignore')
-    with open(ignore_file, 'w') as f:
-        f.write('.ipynb_checkpoints/\n')
-        f.write('__pycache__/\n')
-        f.write('*.pyc\n')
-        f.write('.DS_Store\n')
-        f.write('debug_sagemaker.py\n')
-    print(f"Created .sagemakerignore to exclude checkpoint files")
+    if not os.path.exists(ignore_file):
+        print(f"Creating .sagemakerignore file...")
+        with open(ignore_file, 'w') as f:
+            f.write('.ipynb_checkpoints/\n')
+            f.write('__pycache__/\n')
+            f.write('*.pyc\n')
+            f.write('.DS_Store\n')
+            f.write('debug_sagemaker.py\n')
+            f.write('.git/\n')
+            f.write('*.ipynb\n')
+    else:
+        print(f".sagemakerignore already exists")
     
     # Define the PyTorch estimator
     estimator = PyTorch(
