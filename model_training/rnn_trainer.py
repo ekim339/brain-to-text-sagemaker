@@ -552,9 +552,16 @@ class BrainToTextDecoder_Trainer:
                 # Get phoneme predictions 
                 logits = self.model(features, day_indicies)
 
+                # Check for extreme logits that could cause numerical issues
+                if i % 200 == 0 or torch.any(torch.abs(logits) > 50):
+                    logit_max = torch.max(torch.abs(logits)).item()
+                    if logit_max > 50:
+                        self.logger.warning(f"Batch {i}: Extreme logits detected! Max abs value: {logit_max:.2f}")
+
                 # Calculate CTC Loss
+                log_probs = logits.log_softmax(2)
                 loss = self.ctc_loss(
-                    log_probs = torch.permute(logits.log_softmax(2), [1, 0, 2]),
+                    log_probs = torch.permute(log_probs, [1, 0, 2]),
                     targets = labels,
                     input_lengths = adjusted_lens,
                     target_lengths = phone_seq_lens
@@ -565,6 +572,9 @@ class BrainToTextDecoder_Trainer:
             # Check for NaN loss before backward pass
             if torch.isnan(loss) or torch.isinf(loss):
                 self.logger.error(f"NaN/Inf loss detected at batch {i}! Loss: {loss.item()}")
+                self.logger.error(f"  Logit range: [{torch.min(logits).item():.2f}, {torch.max(logits).item():.2f}]")
+                self.logger.error(f"  Input lengths: {adjusted_lens.cpu().tolist()}")
+                self.logger.error(f"  Target lengths: {phone_seq_lens.cpu().tolist()}")
                 self.logger.error("Skipping this batch and continuing training...")
                 self.optimizer.zero_grad()
                 continue
@@ -593,9 +603,11 @@ class BrainToTextDecoder_Trainer:
 
             # Incrementally log training progress
             if i % self.args['batches_per_train_log'] == 0:
+                current_lr = self.optimizer.param_groups[0]['lr']
                 self.logger.info(f'Train batch {i}: ' +
                         f'loss: {(loss.detach().item()):.2f} ' +
-                        f'grad norm: {grad_norm:.2f} '
+                        f'grad norm (pre-clip): {grad_norm:.2f} ' +
+                        f'lr: {current_lr:.6f} ' +
                         f'time: {train_step_duration:.3f}')
 
             # Incrementally run a test step

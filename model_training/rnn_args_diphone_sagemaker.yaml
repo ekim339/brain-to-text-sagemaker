@@ -16,7 +16,7 @@ model:
 
 gpu_number: '0' # SageMaker sets this automatically
 mode: train
-use_amp: true # mixed precision training for 2-3x speedup
+use_amp: false # Disabled for stability with 1681 classes (float16 can be unstable)
 
 # These will be overridden by train_model_sagemaker.py
 output_dir: /opt/ml/output
@@ -33,22 +33,22 @@ early_stopping_val_steps: 20
 
 num_training_batches: 150000 # increased for diphone training
 lr_scheduler_type: cosine
-lr_max: 0.002 # reduced for 1681-class stability (was 0.004)
-lr_min: 0.0001
+lr_max: 0.0005 # Much lower for 1681-class stability (was 0.002)
+lr_min: 0.00005
 lr_decay_steps: 150000
-lr_warmup_steps: 3000 # longer warmup for stability
-lr_max_day: 0.002 # reduced to match lr_max
-lr_min_day: 0.0001
+lr_warmup_steps: 5000 # Very long warmup for stability (was 3000)
+lr_max_day: 0.0005 # reduced to match lr_max
+lr_min_day: 0.00005
 lr_decay_steps_day: 150000
-lr_warmup_steps_day: 3000 # match main warmup steps
+lr_warmup_steps_day: 5000 # match main warmup steps
 
 beta0: 0.9
 beta1: 0.999
 epsilon: 1.0e-8  # Fixed! Was 0.1 which caused NaN gradients
-weight_decay: 0.002 # increased regularization
+weight_decay: 0.0005 # Reduced for stability (was 0.002)
 weight_decay_day: 0
 seed: 10
-grad_norm_clip_value: 10
+grad_norm_clip_value: 5 # Stricter clipping (was 10)
 
 batches_per_train_log: 200
 batches_per_val_step: 1500 # more frequent validation
@@ -72,7 +72,7 @@ dataset:
     smooth_kernel_std: 2
 
   neural_dim: 512
-  batch_size: 48 # reduced from 64 for larger output layer
+  batch_size: 32 # Further reduced for stability (was 48)
   n_classes: 1681 # DIPHONES (was 41 phonemes)
   max_seq_elements: 500
   days_per_batch: 4
