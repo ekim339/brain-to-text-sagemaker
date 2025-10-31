@@ -156,11 +156,19 @@ class BrainToTextDatasetS3(Dataset):
             try: 
                 g = f[f'trial_{t:04d}']
 
-                # Remove features if necessary 
+                # Load input features
                 input_features = torch.from_numpy(g['input_features'][:])
+                
+                # Remove features if necessary 
                 if self.feature_subset:
                     input_features = input_features[:, self.feature_subset]
 
+                # Normalize the input features (z-score normalization per trial)
+                # This stabilizes training by ensuring mean=0, std=1
+                mean = input_features.mean()
+                std = input_features.std() + 1e-8  # Add epsilon to avoid division by zero
+                input_features = (input_features - mean) / std
+                
                 batch['input_features'].append(input_features)
                 batch['seq_class_ids'].append(torch.from_numpy(g['seq_class_ids'][:]))
                 batch['transcriptions'].append(torch.from_numpy(g['transcription'][:]))

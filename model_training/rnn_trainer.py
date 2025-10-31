@@ -14,6 +14,7 @@ import pickle
 
 from dataset import BrainToTextDataset, train_test_split_indicies
 from data_augmentations import gauss_smooth
+from diphone_utils import diphone_sequence_to_phonemes
 
 import torchaudio.functional as F # for edit distance
 from omegaconf import OmegaConf
