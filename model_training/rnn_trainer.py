@@ -128,6 +128,8 @@ class BrainToTextDecoder_Trainer:
             np.random.seed(self.args['seed'])
             random.seed(self.args['seed'])
             torch.manual_seed(self.args['seed'])
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(self.args['seed'])  # Set CUDA seed for all GPUs
 
         # Initialize the model 
         self.model = GRUDecoder(
