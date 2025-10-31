@@ -14,7 +14,7 @@ import pickle
 
 from dataset import BrainToTextDataset, train_test_split_indicies
 from data_augmentations import gauss_smooth
-from diphone_utils import diphone_sequence_to_phonemes
+from diphone_utils import diphone_sequence_to_phonemes, marginalize_diphone_probabilities
 
 import torchaudio.functional as F # for edit distance
 from omegaconf import OmegaConf
@@ -515,7 +515,8 @@ class BrainToTextDecoder_Trainer:
         # create vars to track performance
         train_losses = []
         val_losses = []
-        val_PERs = []
+        val_DERs = []  # Track Diphone Error Rate
+        val_PERs = []  # Track Phoneme Error Rate
         val_results = []
 
         val_steps_since_improvement = 0
@@ -625,15 +626,19 @@ class BrainToTextDecoder_Trainer:
 
                 # Log info 
                 self.logger.info(f'Val batch {i}: ' +
+                        f'DER (avg): {val_metrics["avg_DER"]:.4f} ' +
                         f'PER (avg): {val_metrics["avg_PER"]:.4f} ' +
                         f'CTC Loss (avg): {val_metrics["avg_loss"]:.4f} ' +
                         f'time: {val_step_duration:.3f}')
                 
                 if self.args['log_individual_day_val_PER']:
-                    for day in val_metrics['day_PERs'].keys():
-                        self.logger.info(f"{self.args['dataset']['sessions'][day]} val PER: {val_metrics['day_PERs'][day]['total_edit_distance'] / val_metrics['day_PERs'][day]['total_seq_length']:0.4f}")
+                    for day in val_metrics['day_DERs'].keys():
+                        der = val_metrics['day_DERs'][day]['total_edit_distance'] / val_metrics['day_DERs'][day]['total_seq_length']
+                        per = val_metrics['day_PERs'][day]['total_edit_distance'] / val_metrics['day_PERs'][day]['total_seq_length']
+                        self.logger.info(f"{self.args['dataset']['sessions'][day]} - DER: {der:0.4f}, PER: {per:0.4f}")
 
                 # Save metrics 
+                val_DERs.append(val_metrics['avg_DER'])
                 val_PERs.append(val_metrics['avg_PER'])
                 val_losses.append(val_metrics['avg_loss'])
                 val_results.append(val_metrics)
@@ -689,8 +694,9 @@ class BrainToTextDecoder_Trainer:
 
         train_stats = {}
         train_stats['train_losses'] = train_losses
-        train_stats['val_losses'] = val_losses 
-        train_stats['val_PERs'] = val_PERs
+        train_stats['val_losses'] = val_losses
+        train_stats['val_DERs'] = val_DERs  # Diphone Error Rates
+        train_stats['val_PERs'] = val_PERs  # Phoneme Error Rates
         train_stats['val_metrics'] = val_results
 
         return train_stats
@@ -711,8 +717,10 @@ class BrainToTextDecoder_Trainer:
         if return_data: 
             metrics['input_features'] = []
 
-        metrics['decoded_seqs'] = []
-        metrics['true_seq'] = []
+        metrics['decoded_seqs'] = []  # Diphone sequences
+        metrics['decoded_phoneme_seqs'] = []  # Phoneme sequences (NEW!)
+        metrics['true_seq'] = []  # Ground truth diphone sequences
+        metrics['true_phoneme_seqs'] = []  # Ground truth phoneme sequences (NEW!)
         metrics['phone_seq_lens'] = []
         metrics['transcription'] = []
         metrics['losses'] = []
@@ -720,13 +728,18 @@ class BrainToTextDecoder_Trainer:
         metrics['trial_nums'] = []
         metrics['day_indicies'] = []
 
-        total_edit_distance = 0
-        total_seq_length = 0
+        # Track both diphone and phoneme errors (with separate sequence lengths)
+        total_diphone_edit_distance = 0
+        total_phoneme_edit_distance = 0
+        total_diphone_seq_length = 0
+        total_phoneme_seq_length = 0
 
-        # Calculate PER for each specific day
-        day_per = {}
+        # Calculate DER and PER for each specific day
+        day_der = {}  # Diphone Error Rate per day
+        day_per = {}  # Phoneme Error Rate per day
         for d in range(len(self.args['dataset']['sessions'])):
             if self.args['dataset']['dataset_probability_val'][d] == 1: 
+                day_der[d] = {'total_edit_distance' : 0, 'total_seq_length' : 0}
                 day_per[d] = {'total_edit_distance' : 0, 'total_seq_length' : 0}
 
         for i, batch in enumerate(loader):        
@@ -763,31 +776,80 @@ class BrainToTextDecoder_Trainer:
 
                 metrics['losses'].append(loss.cpu().detach().numpy())
 
-                # Calculate PER per day and also avg over entire validation set
-                batch_edit_distance = 0 
-                decoded_seqs = []
+                # Calculate DER (Diphone Error Rate) and PER (Phoneme Error Rate)
+                batch_diphone_edit_distance = 0
+                batch_phoneme_edit_distance = 0
+                decoded_diphone_seqs = []
+                decoded_phoneme_seqs = []
+                true_phoneme_seqs = []
+                
                 for iterIdx in range(logits.shape[0]):
-                    decoded_seq = torch.argmax(logits[iterIdx, 0 : adjusted_lens[iterIdx], :].clone().detach(),dim=-1)
-                    decoded_seq = torch.unique_consecutive(decoded_seq, dim=-1)
-                    decoded_seq = decoded_seq.cpu().detach().numpy()
-                    decoded_seq = np.array([i for i in decoded_seq if i != 0])
+                    # === DIPHONE PREDICTIONS (DER) ===
+                    # Argmax over diphone classes
+                    decoded_diphone_seq = torch.argmax(logits[iterIdx, 0 : adjusted_lens[iterIdx], :].clone().detach(), dim=-1)
+                    decoded_diphone_seq = torch.unique_consecutive(decoded_diphone_seq, dim=-1)
+                    decoded_diphone_seq = decoded_diphone_seq.cpu().detach().numpy()
+                    decoded_diphone_seq = np.array([i for i in decoded_diphone_seq if i != 0])
+                    
+                    # === PHONEME PREDICTIONS (PER) ===
+                    # Convert diphone logits → probs → phoneme probs → phoneme predictions
+                    diphone_probs = torch.softmax(logits[iterIdx, 0 : adjusted_lens[iterIdx], :], dim=-1)  # (time, 1681)
+                    diphone_probs_np = diphone_probs.cpu().detach().numpy()
+                    
+                    # Marginalize to phoneme probabilities
+                    # Add batch dimension for marginalize function: (1, time, 1681)
+                    diphone_probs_3d = diphone_probs_np[np.newaxis, :, :]
+                    phoneme_probs = marginalize_diphone_probabilities(diphone_probs_3d)  # (1, time, 41)
+                    phoneme_probs = phoneme_probs[0]  # Remove batch dim: (time, 41)
+                    
+                    # Argmax to get most likely phoneme at each timestep
+                    decoded_phoneme_seq = np.argmax(phoneme_probs, axis=-1)  # (time,)
+                    
+                    # CTC collapse: remove consecutive duplicates
+                    decoded_phoneme_seq = np.array([decoded_phoneme_seq[0]] + 
+                                                   [decoded_phoneme_seq[i] for i in range(1, len(decoded_phoneme_seq)) 
+                                                    if decoded_phoneme_seq[i] != decoded_phoneme_seq[i-1]])
+                    # Remove blanks (0)
+                    decoded_phoneme_seq = np.array([i for i in decoded_phoneme_seq if i != 0])
 
-                    trueSeq = np.array(
+                    # === GROUND TRUTH ===
+                    # Get ground truth diphone sequence
+                    true_diphone_seq = np.array(
                         labels[iterIdx][0 : phone_seq_lens[iterIdx]].cpu().detach()
                     )
+                    
+                    # Convert ground truth diphones → phonemes for PER calculation
+                    true_phoneme_seq = diphone_sequence_to_phonemes(true_diphone_seq)
             
-                    batch_edit_distance += F.edit_distance(decoded_seq, trueSeq)
+                    # Compute edit distances
+                    # DER: Compare predicted diphones vs ground truth diphones
+                    batch_diphone_edit_distance += F.edit_distance(decoded_diphone_seq, true_diphone_seq)
+                    
+                    # PER: Compare predicted phonemes vs ground truth phonemes
+                    batch_phoneme_edit_distance += F.edit_distance(decoded_phoneme_seq, true_phoneme_seq)
 
-                    decoded_seqs.append(decoded_seq)
+                    decoded_diphone_seqs.append(decoded_diphone_seq)
+                    decoded_phoneme_seqs.append(decoded_phoneme_seq)
+                    true_phoneme_seqs.append(true_phoneme_seq)
 
             day = batch['day_indicies'][0].item()
+            
+            # Calculate actual sequence lengths for this batch
+            batch_diphone_seq_length = torch.sum(phone_seq_lens).item()  # Diphone sequence length
+            batch_phoneme_seq_length = sum(len(seq) for seq in true_phoneme_seqs)  # Phoneme sequence length
                 
-            day_per[day]['total_edit_distance'] += batch_edit_distance
-            day_per[day]['total_seq_length'] += torch.sum(phone_seq_lens).item()
+            # Accumulate errors for this day
+            day_der[day]['total_edit_distance'] += batch_diphone_edit_distance
+            day_der[day]['total_seq_length'] += batch_diphone_seq_length
+            
+            day_per[day]['total_edit_distance'] += batch_phoneme_edit_distance
+            day_per[day]['total_seq_length'] += batch_phoneme_seq_length
 
-
-            total_edit_distance += batch_edit_distance
-            total_seq_length += torch.sum(phone_seq_lens)
+            # Accumulate total errors
+            total_diphone_edit_distance += batch_diphone_edit_distance
+            total_phoneme_edit_distance += batch_phoneme_edit_distance
+            total_diphone_seq_length += batch_diphone_seq_length
+            total_phoneme_seq_length += batch_phoneme_seq_length
 
             # Record metrics
             if return_logits: 
@@ -797,8 +859,10 @@ class BrainToTextDecoder_Trainer:
             if return_data: 
                 metrics['input_features'].append(batch['input_features'].cpu().numpy()) 
 
-            metrics['decoded_seqs'].append(decoded_seqs)
-            metrics['true_seq'].append(batch['seq_class_ids'].cpu().numpy())
+            metrics['decoded_seqs'].append(decoded_diphone_seqs)  # Diphone predictions
+            metrics['decoded_phoneme_seqs'].append(decoded_phoneme_seqs)  # Phoneme predictions
+            metrics['true_seq'].append(batch['seq_class_ids'].cpu().numpy())  # Ground truth diphones
+            metrics['true_phoneme_seqs'].append(true_phoneme_seqs)  # Ground truth phonemes
             metrics['phone_seq_lens'].append(batch['phone_seq_lens'].cpu().numpy())
             metrics['transcription'].append(batch['transcriptions'].cpu().numpy())
             metrics['losses'].append(loss.detach().item())
@@ -806,10 +870,15 @@ class BrainToTextDecoder_Trainer:
             metrics['trial_nums'].append(batch['trial_nums'].numpy())
             metrics['day_indicies'].append(batch['day_indicies'].cpu().numpy())
 
-        avg_PER = total_edit_distance / total_seq_length
+        # Compute average error rates (using appropriate sequence lengths)
+        avg_DER = total_diphone_edit_distance / total_diphone_seq_length
+        avg_PER = total_phoneme_edit_distance / total_phoneme_seq_length
 
-        metrics['day_PERs'] = day_per
-        metrics['avg_PER'] = avg_PER.item()
+        # Store both metrics
+        metrics['day_DERs'] = day_der  # Diphone Error Rate per day
+        metrics['day_PERs'] = day_per  # Phoneme Error Rate per day
+        metrics['avg_DER'] = avg_DER  # Average Diphone Error Rate
+        metrics['avg_PER'] = avg_PER  # Average Phoneme Error Rate
         metrics['avg_loss'] = np.mean(metrics['losses'])
 
         return metrics

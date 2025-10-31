@@ -7,6 +7,17 @@ import numpy as np
 
 NUM_PHONEMES = 41  # Including BLANK (0)
 
+def marginalize_diphone_probabilities(diphone_probs):
+    """
+    Marginalize the log probabilities over the diphone dimension.
+    """
+    r, c, p = diphone_probs.shape
+    phoneme_probs = np.zeros((r, c, NUM_PHONEMES))
+
+    for i in range(NUM_PHONEMES):
+        phoneme_probs[:, :, i] = np.sum(diphone_probs[:, :, i::NUM_PHONEMES], axis=-1)
+    return phoneme_probs
+
 
 def diphone_sequence_to_phonemes(diphone_sequence):
     """
