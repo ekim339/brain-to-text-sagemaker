@@ -563,11 +563,6 @@ class BrainToTextDecoder_Trainer:
 
                 # Calculate CTC Loss
                 log_probs = logits.log_softmax(2)
-                
-                # Cast to float32 for numerical stability in CTC
-                # (Important when using AMP with float16/bfloat16)
-                log_probs = log_probs.float()
-                
                 loss = self.ctc_loss(
                     log_probs = torch.permute(log_probs, [1, 0, 2]),
                     targets = labels,
@@ -758,11 +753,8 @@ class BrainToTextDecoder_Trainer:
 
                     logits = self.model(features, day_indicies)
     
-                    # Cast to float32 for numerical stability in CTC
-                    log_probs = logits.log_softmax(2).float()
-                    
                     loss = self.ctc_loss(
-                        torch.permute(log_probs, [1, 0, 2]),
+                        torch.permute(logits.log_softmax(2), [1, 0, 2]),
                         labels,
                         adjusted_lens,
                         phone_seq_lens,
