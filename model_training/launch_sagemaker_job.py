@@ -17,6 +17,9 @@ def launch_training_job(
     num_training_batches=None,
     batch_size=None,
     role=None,
+    use_mlflow=False,
+    mlflow_tracking_uri=None,
+    mlflow_experiment_name='brain-to-text-diphone',
 ):
     """
     Launch a SageMaker training job
@@ -35,6 +38,9 @@ def launch_training_job(
         num_training_batches: Override training batches (optional)
         batch_size: Override batch size (optional)
         role: IAM role for SageMaker (auto-detected if None)
+        use_mlflow: Enable MLflow tracking (requires remote MLflow server)
+        mlflow_tracking_uri: MLflow server URI (e.g., http://your-ec2-ip:5000)
+        mlflow_experiment_name: MLflow experiment name
     """
     
     # Get SageMaker session
@@ -73,6 +79,13 @@ def launch_training_job(
         'gpu-number': '0',
     }
     
+    # Add MLflow configuration if enabled
+    if use_mlflow:
+        if mlflow_tracking_uri is None:
+            raise ValueError("mlflow_tracking_uri must be provided when use_mlflow=True")
+        hyperparameters['mlflow-tracking-uri'] = mlflow_tracking_uri
+        hyperparameters['mlflow-experiment-name'] = mlflow_experiment_name
+    
     # Add optional overrides
     if num_training_batches is not None:
         hyperparameters['num-training-batches'] = num_training_batches
@@ -97,9 +110,12 @@ def launch_training_job(
     else:
         print(f".sagemakerignore already exists")
     
+    # Choose entry point based on MLflow usage
+    entry_point = 'train_model_sagemaker_mlflow.py' if use_mlflow else 'train_model_sagemaker.py'
+    
     # Define the PyTorch estimator
     estimator = PyTorch(
-        entry_point='train_model_sagemaker.py',
+        entry_point=entry_point,
         source_dir=script_dir,  # Automatically packages all files in this directory
         role=role,
         instance_type=instance_type,
@@ -156,6 +172,12 @@ if __name__ == '__main__':
                         help='Override number of training batches')
     parser.add_argument('--batch-size', type=int, default=None,
                         help='Override batch size')
+    parser.add_argument('--use-mlflow', action='store_true',
+                        help='Enable MLflow tracking (requires remote MLflow server)')
+    parser.add_argument('--mlflow-tracking-uri', type=str, default=None,
+                        help='MLflow tracking server URI (e.g., http://your-ec2-ip:5000)')
+    parser.add_argument('--mlflow-experiment-name', type=str, default='brain-to-text-diphone',
+                        help='MLflow experiment name')
     
     args = parser.parse_args()
     
@@ -167,5 +189,8 @@ if __name__ == '__main__':
         config_file=args.config_file,
         num_training_batches=args.num_training_batches,
         batch_size=args.batch_size,
+        use_mlflow=args.use_mlflow,
+        mlflow_tracking_uri=args.mlflow_tracking_uri,
+        mlflow_experiment_name=args.mlflow_experiment_name,
     )
 
