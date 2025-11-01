@@ -76,6 +76,27 @@ def main():
     training_args['checkpoint_dir'] = os.path.join(args.model_dir, 'checkpoint')
     training_args['gpu_number'] = args.gpu_number
     
+    # Check if checkpoint was provided for resumption
+    checkpoint_input_dir = '/opt/ml/input/data/checkpoint'
+    if os.path.exists(checkpoint_input_dir):
+        # List files in checkpoint directory
+        checkpoint_files = os.listdir(checkpoint_input_dir)
+        print(f"\nCheckpoint directory found: {checkpoint_input_dir}")
+        print(f"Checkpoint files: {checkpoint_files}")
+        
+        # Look for best_checkpoint or any checkpoint file
+        if 'best_checkpoint' in checkpoint_files:
+            checkpoint_path = os.path.join(checkpoint_input_dir, 'best_checkpoint')
+        elif checkpoint_files:  # Use first available checkpoint
+            checkpoint_path = os.path.join(checkpoint_input_dir, checkpoint_files[0])
+        else:
+            checkpoint_path = None
+        
+        if checkpoint_path:
+            training_args['init_from_checkpoint'] = True
+            training_args['init_checkpoint_path'] = checkpoint_path
+            print(f"Will resume from checkpoint: {checkpoint_path}")
+    
     # Apply any command-line overrides
     if args.num_training_batches is not None:
         training_args['num_training_batches'] = args.num_training_batches

@@ -20,6 +20,7 @@ def launch_training_job(
     use_mlflow=False,
     mlflow_tracking_uri=None,
     mlflow_experiment_name='brain-to-text-diphone',
+    checkpoint_s3_path=None,
 ):
     """
     Launch a SageMaker training job
@@ -41,6 +42,7 @@ def launch_training_job(
         use_mlflow: Enable MLflow tracking (requires remote MLflow server)
         mlflow_tracking_uri: MLflow server URI (e.g., http://your-ec2-ip:5000)
         mlflow_experiment_name: MLflow experiment name
+        checkpoint_s3_path: S3 path to checkpoint directory (e.g., s3://bucket/checkpoints/run1/)
     """
     
     # Get SageMaker session
@@ -137,8 +139,14 @@ def launch_training_job(
     print("\nStarting training job...")
     print("="*80)
     
-    # Start the training job (no input data needed - we stream from S3)
-    estimator.fit(wait=False)
+    # Set up inputs (checkpoint if provided)
+    inputs = {}
+    if checkpoint_s3_path:
+        print(f"Using checkpoint from: {checkpoint_s3_path}")
+        inputs['checkpoint'] = checkpoint_s3_path
+    
+    # Start the training job
+    estimator.fit(inputs=inputs if inputs else None, wait=False)
     
     print("="*80)
     print(f"Training job launched: {job_name}")
@@ -178,6 +186,8 @@ if __name__ == '__main__':
                         help='MLflow tracking server URI (e.g., http://your-ec2-ip:5000)')
     parser.add_argument('--mlflow-experiment-name', type=str, default='brain-to-text-diphone',
                         help='MLflow experiment name')
+    parser.add_argument('--checkpoint-s3-path', type=str, default=None,
+                        help='S3 path to checkpoint directory for resuming training (e.g., s3://bucket/checkpoints/run1/)')
     
     args = parser.parse_args()
     
@@ -192,5 +202,6 @@ if __name__ == '__main__':
         use_mlflow=args.use_mlflow,
         mlflow_tracking_uri=args.mlflow_tracking_uri,
         mlflow_experiment_name=args.mlflow_experiment_name,
+        checkpoint_s3_path=args.checkpoint_s3_path,
     )
 

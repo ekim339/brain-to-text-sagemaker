@@ -40,7 +40,7 @@ lr_warmup_steps: 3000 # Very long warmup for stability (was 3000)
 lr_max_day: 0.0005 # reduced to match lr_max
 lr_min_day: 0.00005
 lr_decay_steps_day: 150000
-lr_warmup_steps_day: 5000 # match main warmup steps
+lr_warmup_steps_day: 3000 # match main warmup steps
 
 beta0: 0.9
 beta1: 0.999
