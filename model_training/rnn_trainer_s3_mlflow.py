@@ -29,11 +29,25 @@ class BrainToTextDecoder_Trainer_S3_MLflow(BrainToTextDecoder_Trainer_S3):
         experiment_name = os.environ.get('MLFLOW_EXPERIMENT_NAME', 'brain-to-text-diphone')
         mlflow.set_experiment(experiment_name)
         
-        # Start MLflow run
-        self.mlflow_run = mlflow.start_run()
+        # Create descriptive run name
+        run_name = os.environ.get('MLFLOW_RUN_NAME', None)
+        if run_name is None:
+            # Auto-generate name from key parameters
+            lr = args.get('lr_max', 'unknown')
+            bs = args['dataset'].get('batch_size', 'unknown')
+            run_name = f"diphone_lr{lr}_bs{bs}"
+        
+        # Start MLflow run with custom name
+        self.mlflow_run = mlflow.start_run(run_name=run_name)
+        
+        # Add tags for easier filtering
+        mlflow.set_tag("model_type", args['model']['model_type'])
+        mlflow.set_tag("n_classes", args['dataset']['n_classes'])
+        mlflow.set_tag("description", os.environ.get('MLFLOW_RUN_DESCRIPTION', 'Diphone training'))
         
         print(f"MLflow tracking URI: {mlflow_uri}")
         print(f"MLflow experiment: {experiment_name}")
+        print(f"MLflow run name: {run_name}")
         print(f"MLflow run ID: {self.mlflow_run.info.run_id}")
         
         # Initialize parent class

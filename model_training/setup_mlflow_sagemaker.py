@@ -44,10 +44,12 @@ def start_mlflow_server():
     
     # Start server in background
     log_file = os.path.expanduser('~/mlflow.log')
+    db_path = os.path.expanduser('~/mlflow.db')
+    
     with open(log_file, 'w') as f:
         subprocess.Popen([
             'mlflow', 'server',
-            '--backend-store-uri', f'sqlite:///{os.path.expanduser("~/mlflow.db")}',
+            '--backend-store-uri', f'sqlite:///{db_path}',
             '--default-artifact-root', mlflow_dir,
             '--host', '0.0.0.0',
             '--port', '5000'
