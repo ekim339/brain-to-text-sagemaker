@@ -576,9 +576,9 @@ class BrainToTextDecoder_Trainer:
             # Check for NaN loss before backward pass
             if torch.isnan(loss) or torch.isinf(loss):
                 self.logger.error(f"NaN/Inf loss detected at batch {i}! Loss: {loss.item()}")
-                self.logger.error(f"  Logit range: [{torch.min(logits).item():.2f}, {torch.max(logits).item():.2f}]")
-                self.logger.error(f"  Input lengths: {adjusted_lens.cpu().tolist()}")
-                self.logger.error(f"  Target lengths: {phone_seq_lens.cpu().tolist()}")
+                # self.logger.error(f"  Logit range: [{torch.min(logits).item():.2f}, {torch.max(logits).item():.2f}]")
+                # self.logger.error(f"  Input lengths: {adjusted_lens.cpu().tolist()}")
+                # self.logger.error(f"  Target lengths: {phone_seq_lens.cpu().tolist()}")
                 self.logger.error("Skipping this batch and continuing training...")
                 self.optimizer.zero_grad()
                 continue
