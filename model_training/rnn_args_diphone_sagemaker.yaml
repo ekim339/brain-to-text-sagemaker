@@ -33,14 +33,14 @@ early_stopping_val_steps: 20
 
 num_training_batches: 150000 # increased for diphone training
 lr_scheduler_type: cosine
-lr_max: 0.003 # Much lower for 1681-class stability (was 0.002)
+lr_max: 0.0005 # Much lower for 1681-class stability (was 0.002)
 lr_min: 0.00005
 lr_decay_steps: 150000
-lr_warmup_steps: 1000 # Very long warmup for stability (was 3000)
-lr_max_day: 0.003 # reduced to match lr_max
+lr_warmup_steps: 5000 # Very long warmup for stability (was 3000)
+lr_max_day: 0.0005 # reduced to match lr_max
 lr_min_day: 0.00005
 lr_decay_steps_day: 150000
-lr_warmup_steps_day: 1000 # match main warmup steps
+lr_warmup_steps_day: 5000 # match main warmup steps
 
 beta0: 0.9
 beta1: 0.999
