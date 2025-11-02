@@ -5,7 +5,7 @@ model:
   rnn_trainable: true
   n_layers: 5 # number of GRU layers
   patch_size: 14 # size of the input patches
-  patch_stride: 4 # stride for the input patches
+  patch_stride: 14 # stride for the input patches
 
   input_network:
     n_input_layers: 1
@@ -33,8 +33,8 @@ early_stopping_val_steps: 20
 
 num_training_batches: 150000 # increased for diphone training
 lr_scheduler_type: cosine
-lr_max: 0.0005 # Much lower for 1681-class stability (was 0.002)
-lr_min: 0.00005
+lr_max: 0.005 # Much lower for 1681-class stability (was 0.002)
+lr_min: 0.00001
 lr_decay_steps: 150000
 lr_warmup_steps: 3000 # Very long warmup for stability (was 3000)
 lr_max_day: 0.0005 # reduced to match lr_max
