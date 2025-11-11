@@ -6,7 +6,7 @@ model:
   n_layers: 5 # number of GRU layers
   bidirectional: true # Set to true for bidirectional RNN (doubles params, no real-time use)
   patch_size: 14 # size of the input patches
-  patch_stride: 14 # stride for the input patches
+  patch_stride: 4 # stride for the input patches
 
   input_network:
     n_input_layers: 1

@@ -640,6 +640,31 @@ class BrainToTextDecoder_Trainer:
 
         train_start_time = time.time()
 
+        # Run initial validation before any training (baseline)
+        self.logger.info("=" * 80)
+        self.logger.info("Running initial validation before training (baseline)...")
+        self.logger.info("=" * 80)
+        start_time = time.time()
+        val_metrics = self.validation(loader=self.val_loader, return_logits=False, return_data=False)
+        val_step_duration = time.time() - start_time
+        
+        self.logger.info(f'Initial validation (pre-training): ' +
+                        f'DER (avg): {val_metrics["avg_DER"]:.4f} ' +
+                        f'PER (avg): {val_metrics["avg_PER"]:.4f} ' +
+                        f'CTC Loss (avg): {np.mean(val_metrics["losses"]):.4f} ' +
+                        f'time: {val_step_duration:.3f}')
+        
+        # Store initial results
+        val_losses.append(np.mean(val_metrics['losses']))
+        val_DERs.append(val_metrics['avg_DER'])
+        val_PERs.append(val_metrics['avg_PER'])
+        val_results.append(val_metrics)
+        
+        # Initialize best metrics with baseline
+        self.best_val_PER = val_metrics['avg_PER']
+        self.best_val_loss = np.mean(val_metrics['losses'])
+        self.logger.info("=" * 80)
+
         # train for specified number of batches
         for i, batch in enumerate(self.train_loader):
             
