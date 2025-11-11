@@ -15,6 +15,7 @@ class GRUDecoder(nn.Module):
                  rnn_dropout = 0.0,
                  input_dropout = 0.0,
                  n_layers = 5, 
+                 bidirectional = False,
                  patch_size = 0,
                  patch_stride = 0,
                  ):
@@ -26,6 +27,7 @@ class GRUDecoder(nn.Module):
         rnn_dropout    (float) - percentage of units to droupout during training
         input_dropout (float)  - percentage of input units to dropout during training
         n_layers    (int)      - number of recurrent layers 
+        bidirectional (bool)   - whether to use bidirectional RNN (doubles parameters and output size)
         patch_size  (int)      - the number of timesteps to concat on initial input layer - a value of 0 will disable this "input concat" step 
         patch_stride(int)      - the number of timesteps to stride over when concatenating initial input 
         '''
@@ -36,12 +38,17 @@ class GRUDecoder(nn.Module):
         self.n_classes = n_classes
         self.n_layers = n_layers 
         self.n_days = n_days
+        self.bidirectional = bidirectional
 
         self.rnn_dropout = rnn_dropout
         self.input_dropout = input_dropout
         
         self.patch_size = patch_size
         self.patch_stride = patch_stride
+        
+        # Calculate output size (doubled if bidirectional)
+        self.num_directions = 2 if bidirectional else 1
+        self.output_size = n_units * self.num_directions
 
         # Parameters for the day-specific input layers
         self.day_layer_activation = nn.Softsign() # basically a shallower tanh 
@@ -68,7 +75,7 @@ class GRUDecoder(nn.Module):
             num_layers = self.n_layers,
             dropout = self.rnn_dropout, 
             batch_first = True, # The first dim of our input is the batch dim
-            bidirectional = False,
+            bidirectional = self.bidirectional,
         )
 
         # Set recurrent units to have orthogonal param init and input layers to have xavier init
@@ -78,11 +85,13 @@ class GRUDecoder(nn.Module):
             if "weight_ih" in name:
                 nn.init.xavier_uniform_(param)
 
-        # Prediciton head. Weight init to xavier
-        self.out = nn.Linear(self.n_units, self.n_classes)
+        # Prediction head. Weight init to xavier
+        # If bidirectional, output size is doubled (forward + backward)
+        self.out = nn.Linear(self.output_size, self.n_classes)
         nn.init.xavier_uniform_(self.out.weight)
 
         # Learnable initial hidden states
+        # Shape: (num_layers * num_directions, 1, hidden_size)
         self.h0 = nn.Parameter(nn.init.xavier_uniform_(torch.zeros(1, 1, self.n_units)))
 
     def forward(self, x, day_idx, states = None, return_state = False):
@@ -121,7 +130,8 @@ class GRUDecoder(nn.Module):
         
         # Determine initial hidden states
         if states is None:
-            states = self.h0.expand(self.n_layers, x.shape[0], self.n_units).contiguous()
+            # Shape: (num_layers * num_directions, batch_size, hidden_size)
+            states = self.h0.expand(self.n_layers * self.num_directions, x.shape[0], self.n_units).contiguous()
 
         # Pass input through RNN 
         output, hidden_states = self.gru(x, states)

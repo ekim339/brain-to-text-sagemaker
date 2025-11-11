@@ -141,6 +141,7 @@ class BrainToTextDecoder_Trainer:
             rnn_dropout = self.args['model']['rnn_dropout'], 
             input_dropout = self.args['model']['input_network']['input_layer_dropout'], 
             n_layers = self.args['model']['n_layers'],
+            bidirectional = self.args['model'].get('bidirectional', False),
             patch_size = self.args['model']['patch_size'],
             patch_stride = self.args['model']['patch_stride'],
         )

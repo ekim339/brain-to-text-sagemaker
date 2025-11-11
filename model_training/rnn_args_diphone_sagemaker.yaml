@@ -4,6 +4,7 @@ model:
   rnn_dropout: 0.5 # dropout rate for the GRU layers
   rnn_trainable: true
   n_layers: 5 # number of GRU layers
+  bidirectional: true # Set to true for bidirectional RNN (doubles params, no real-time use)
   patch_size: 14 # size of the input patches
   patch_stride: 14 # stride for the input patches
 
