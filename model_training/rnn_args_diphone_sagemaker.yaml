@@ -28,19 +28,19 @@ save_best_checkpoint: true
 save_all_val_steps: false
 save_final_model: false
 save_val_metrics: true
-early_stopping: false
+early_stopping: true
 early_stopping_val_steps: 20
 
 num_training_batches: 150000 # increased for diphone training
 lr_scheduler_type: cosine
-lr_max: 0.005 # Much lower for 1681-class stability (was 0.002)
-lr_min: 0.00001
+lr_max: 0.02 # Much lower for 1681-class stability (was 0.002)
+lr_min: 0.005
 lr_decay_steps: 150000
-lr_warmup_steps: 3000 # Very long warmup for stability (was 3000)
-lr_max_day: 0.0005 # reduced to match lr_max
-lr_min_day: 0.00005
+lr_warmup_steps: 1000 # Very long warmup for stability (was 3000)
+lr_max_day: 0.02 # reduced to match lr_max
+lr_min_day: 0.005
 lr_decay_steps_day: 150000
-lr_warmup_steps_day: 3000 # match main warmup steps
+lr_warmup_steps_day: 1000 # match main warmup steps
 
 beta0: 0.9
 beta1: 0.999
@@ -49,6 +49,17 @@ weight_decay: 0.0005 # Reduced for stability (was 0.002)
 weight_decay_day: 0
 seed: 10
 grad_norm_clip_value: 5 # Stricter clipping (was 10)
+
+# Composite loss: L = alpha * (phoneme_loss) + (1 - alpha) * (diphone_loss)
+use_composite_loss: true  # Enable composite loss with both phoneme and diphone
+composite_loss_alpha: 0.6  # Weight for phoneme loss (0.0 = only diphone, 1.0 = only phoneme) [ignored if using schedule]
+
+# Dynamic alpha schedule (curriculum learning: gradually increase phoneme weight)
+use_alpha_schedule: true  # Enable dynamic alpha schedule
+alpha_schedule_start: 0.0  # Starting alpha (0.0 = diphone-only)
+alpha_schedule_end: 0.6  # Maximum alpha (0.6 = 60% phoneme, 40% diphone)
+alpha_schedule_step_size: 0.1  # Increase alpha by this amount
+alpha_schedule_step_interval: 3000  # Increase alpha every N batches
 
 batches_per_train_log: 200
 batches_per_val_step: 1500 # more frequent validation

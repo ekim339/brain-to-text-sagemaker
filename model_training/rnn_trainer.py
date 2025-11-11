@@ -14,7 +14,8 @@ import pickle
 
 from dataset import BrainToTextDataset, train_test_split_indicies
 from data_augmentations import gauss_smooth
-from diphone_utils import diphone_sequence_to_phonemes, marginalize_diphone_probabilities
+from diphone_utils import marginalize_diphone_probabilities
+import torch.nn.functional as F_torch
 
 import torchaudio.functional as F # for edit distance
 from omegaconf import OmegaConf
@@ -255,6 +256,25 @@ class BrainToTextDecoder_Trainer:
             raise ValueError(f"Invalid learning rate scheduler type: {self.args['lr_scheduler_type']}")
         
         self.ctc_loss = torch.nn.CTCLoss(blank = 0, reduction = 'none', zero_infinity = False)
+        
+        # Log composite loss configuration
+        if self.args.get('use_composite_loss', False):
+            if self.args.get('use_alpha_schedule', False):
+                # Using dynamic alpha schedule
+                start = self.args.get('alpha_schedule_start', 0.0)
+                end = self.args.get('alpha_schedule_end', 0.6)
+                step = self.args.get('alpha_schedule_step_size', 0.1)
+                interval = self.args.get('alpha_schedule_step_interval', 3000)
+                self.logger.info(f'Using composite loss with dynamic alpha schedule:')
+                self.logger.info(f'  α starts at {start:.2f}, increases by {step:.2f} every {interval} batches, caps at {end:.2f}')
+                self.logger.info(f'  Loss: L = α*(phoneme) + (1-α)*(diphone)')
+            else:
+                # Using fixed alpha
+                alpha = self.args.get('composite_loss_alpha', 0.5)
+                self.logger.info(f'Using composite loss with fixed α = {alpha:.2f}')
+                self.logger.info(f'  Loss: L = {alpha:.2f}*(phoneme) + {1-alpha:.2f}*(diphone)')
+        else:
+            self.logger.info('Using standard diphone-only CTC loss')
 
         # If a checkpoint is provided, then load from checkpoint
         if self.args['init_from_checkpoint']:
@@ -270,6 +290,96 @@ class BrainToTextDecoder_Trainer:
 
         # Send model to device 
         self.model.to(self.device)
+        
+    def get_composite_loss_alpha(self, batch_idx):
+        """
+        Calculate the current alpha value for composite loss based on batch index.
+        
+        If use_alpha_schedule is enabled, alpha increases linearly over time:
+        - Starts at alpha_schedule_start
+        - Increases by alpha_schedule_step_size every alpha_schedule_step_interval batches
+        - Caps at alpha_schedule_end
+        
+        Example with default settings (start=0.0, end=0.6, step=0.1, interval=3000):
+        - Batch 0-2999: alpha = 0.0 (diphone-only)
+        - Batch 3000-5999: alpha = 0.1
+        - Batch 6000-8999: alpha = 0.2
+        - Batch 9000-11999: alpha = 0.3
+        - Batch 12000-14999: alpha = 0.4
+        - Batch 15000-17999: alpha = 0.5
+        - Batch 18000+: alpha = 0.6 (capped)
+        
+        Args:
+            batch_idx: Current training batch index
+            
+        Returns:
+            alpha: Weight for phoneme loss (0.0 to 1.0)
+        """
+        if not self.args.get('use_alpha_schedule', False):
+            # Use fixed alpha
+            return self.args.get('composite_loss_alpha', 0.5)
+        
+        # Dynamic alpha schedule
+        start_alpha = self.args.get('alpha_schedule_start', 0.0)
+        end_alpha = self.args.get('alpha_schedule_end', 0.6)
+        step_size = self.args.get('alpha_schedule_step_size', 0.1)
+        step_interval = self.args.get('alpha_schedule_step_interval', 3000)
+        
+        # Calculate how many steps have occurred
+        num_steps = batch_idx // step_interval
+        
+        # Calculate current alpha
+        current_alpha = start_alpha + (num_steps * step_size)
+        
+        # Cap at end_alpha
+        current_alpha = min(current_alpha, end_alpha)
+        
+        return current_alpha
+        
+    def marginalize_diphone_logits_to_phoneme_logits(self, diphone_logits):
+        """
+        Convert diphone logits to phoneme logits using log-sum-exp marginalization.
+        
+        This is the PyTorch/logit-space version of marginalize_diphone_probabilities()
+        from diphone_utils.py. Both use the same marginalization logic (summing all
+        diphones ending in the same phoneme), but this version:
+        - Works on logits (before softmax) for numerical stability during training
+        - Uses log-sum-exp instead of regular sum
+        - Operates in PyTorch on GPU
+        
+        Marginalization logic:
+        - Diphone encoding: prev_phoneme * 41 + curr_phoneme
+        - For each phoneme i, sum all diphones where (diphone_id % 41) == i
+        - This is equivalent to: diphone_probs[:, :, i::41].sum(axis=-1)
+        
+        Args:
+            diphone_logits: (batch, time, 1681) - logits for diphone classes
+            
+        Returns:
+            phoneme_logits: (batch, time, 41) - logits for phoneme classes
+        """
+        batch_size, time_steps, _ = diphone_logits.shape
+        num_phonemes = 41
+        
+        # Initialize phoneme logits
+        phoneme_logits = torch.zeros((batch_size, time_steps, num_phonemes), 
+                                     device=diphone_logits.device, 
+                                     dtype=diphone_logits.dtype)
+        
+        # For each phoneme, collect all diphone logits that end in that phoneme
+        # Using the same indexing as marginalize_diphone_probabilities: i::41
+        for i in range(num_phonemes):
+            # Get all diphones ending in phoneme i (indices: i, i+41, i+82, ...)
+            diphone_indices = list(range(i, 1681, num_phonemes))
+            
+            # Get logits for all diphones ending in phoneme i
+            relevant_logits = diphone_logits[:, :, diphone_indices]  # (batch, time, 41)
+            
+            # Log-sum-exp to marginalize in log space: log(sum(exp(logit_j)))
+            # This is numerically stable equivalent of: log(sum(probs ending in phoneme i))
+            phoneme_logits[:, :, i] = torch.logsumexp(relevant_logits, dim=-1)
+        
+        return phoneme_logits
 
     def create_optimizer(self):
         '''
@@ -541,8 +651,10 @@ class BrainToTextDecoder_Trainer:
             # Move data to device
             features = batch['input_features'].to(self.device)
             labels = batch['seq_class_ids'].to(self.device)
+            labels_phoneme = batch['seq_class_ids_phoneme'].to(self.device)
             n_time_steps = batch['n_time_steps'].to(self.device)
             phone_seq_lens = batch['phone_seq_lens'].to(self.device)
+            phone_seq_lens_phoneme = batch['phone_seq_lens_phoneme'].to(self.device)
             day_indicies = batch['day_indicies'].to(self.device)
 
             # Use autocast for efficiency
@@ -562,16 +674,51 @@ class BrainToTextDecoder_Trainer:
                     if logit_max > 50:
                         self.logger.warning(f"Batch {i}: Extreme logits detected! Max abs value: {logit_max:.2f}")
 
-                # Calculate CTC Loss
-                log_probs = logits.log_softmax(2)
-                loss = self.ctc_loss(
-                    log_probs = torch.permute(log_probs, [1, 0, 2]),
-                    targets = labels,
-                    input_lengths = adjusted_lens,
-                    target_lengths = phone_seq_lens
-                    )
+                # Calculate CTC Loss (Composite: diphone + phoneme)
+                # Initialize for logging (will be overwritten if composite loss is used)
+                diphone_loss = None
+                phoneme_loss = None
+                alpha = None  # Will be set if composite loss is used
+                
+                if self.args.get('use_composite_loss', False):
+                    # Get current alpha (may be dynamic based on schedule)
+                    alpha = self.get_composite_loss_alpha(i)
                     
-                loss = torch.mean(loss) # take mean loss over batches
+                    # === DIPHONE LOSS ===
+                    diphone_log_probs = logits.log_softmax(2)
+                    diphone_loss = self.ctc_loss(
+                        log_probs = torch.permute(diphone_log_probs, [1, 0, 2]),
+                        targets = labels,
+                        input_lengths = adjusted_lens,
+                        target_lengths = phone_seq_lens
+                    )
+                    diphone_loss = torch.mean(diphone_loss)
+                    
+                    # === PHONEME LOSS ===
+                    # Marginalize diphone logits to phoneme logits
+                    phoneme_logits = self.marginalize_diphone_logits_to_phoneme_logits(logits)
+                    phoneme_log_probs = phoneme_logits.log_softmax(2)
+                    phoneme_loss = self.ctc_loss(
+                        log_probs = torch.permute(phoneme_log_probs, [1, 0, 2]),
+                        targets = labels_phoneme,
+                        input_lengths = adjusted_lens,
+                        target_lengths = phone_seq_lens_phoneme
+                    )
+                    phoneme_loss = torch.mean(phoneme_loss)
+                    
+                    # === COMPOSITE LOSS ===
+                    loss = alpha * phoneme_loss + (1 - alpha) * diphone_loss
+                    
+                else:
+                    # Original: Only diphone loss
+                    log_probs = logits.log_softmax(2)
+                    loss = self.ctc_loss(
+                        log_probs = torch.permute(log_probs, [1, 0, 2]),
+                        targets = labels,
+                        input_lengths = adjusted_lens,
+                        target_lengths = phone_seq_lens
+                    )
+                    loss = torch.mean(loss)
             
             # Check for NaN loss before backward pass
             if torch.isnan(loss) or torch.isinf(loss):
@@ -608,11 +755,20 @@ class BrainToTextDecoder_Trainer:
             # Incrementally log training progress
             if i % self.args['batches_per_train_log'] == 0:
                 current_lr = self.optimizer.param_groups[0]['lr']
-                self.logger.info(f'Train batch {i}: ' +
-                        f'loss: {(loss.detach().item()):.2f} ' +
-                        f'grad norm (pre-clip): {grad_norm:.2f} ' +
-                        f'lr: {current_lr:.6f} ' +
-                        f'time: {train_step_duration:.3f}')
+                log_msg = (f'Train batch {i}: ' +
+                          f'loss: {(loss.detach().item()):.2f} ')
+                
+                # If using composite loss, also log individual components and alpha
+                if self.args.get('use_composite_loss', False):
+                    log_msg += (f'(diphone: {diphone_loss.detach().item():.2f}, ' +
+                               f'phoneme: {phoneme_loss.detach().item():.2f}, ' +
+                               f'α: {alpha:.2f}) ')
+                
+                log_msg += (f'grad norm (pre-clip): {grad_norm:.2f} ' +
+                           f'lr: {current_lr:.6f} ' +
+                           f'time: {train_step_duration:.3f}')
+                
+                self.logger.info(log_msg)
 
             # Incrementally run a test step
             if i % self.args['batches_per_val_step'] == 0 or i == ((self.args['num_training_batches'] - 1)):
@@ -746,8 +902,10 @@ class BrainToTextDecoder_Trainer:
 
             features = batch['input_features'].to(self.device)
             labels = batch['seq_class_ids'].to(self.device)
+            labels_phoneme = batch['seq_class_ids_phoneme'].to(self.device)
             n_time_steps = batch['n_time_steps'].to(self.device)
             phone_seq_lens = batch['phone_seq_lens'].to(self.device)
+            phone_seq_lens_phoneme = batch['phone_seq_lens_phoneme'].to(self.device)
             day_indicies = batch['day_indicies'].to(self.device)
 
             # Determine if we should perform validation on this batch
@@ -818,8 +976,10 @@ class BrainToTextDecoder_Trainer:
                         labels[iterIdx][0 : phone_seq_lens[iterIdx]].cpu().detach()
                     )
                     
-                    # Convert ground truth diphones → phonemes for PER calculation
-                    true_phoneme_seq = diphone_sequence_to_phonemes(true_diphone_seq)
+                    # Get ground truth phoneme sequence directly from data
+                    true_phoneme_seq = np.array(
+                        labels_phoneme[iterIdx][0 : phone_seq_lens_phoneme[iterIdx]].cpu().detach()
+                    )
             
                     # Compute edit distances
                     # DER: Compare predicted diphones vs ground truth diphones

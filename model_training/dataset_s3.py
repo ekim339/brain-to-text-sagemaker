@@ -102,8 +102,10 @@ class BrainToTextDatasetS3(Dataset):
         batch = {
             'input_features': [],
             'seq_class_ids': [],
+            'seq_class_ids_phoneme': [],
             'n_time_steps': [],
             'phone_seq_lens': [],
+            'phone_seq_lens_phoneme': [],
             'day_indicies': [],
             'transcriptions': [],
             'block_nums': [],
@@ -138,9 +140,11 @@ class BrainToTextDatasetS3(Dataset):
             
         batch['input_features'] = pad_sequence(batch['input_features'], batch_first=True, padding_value=0)
         batch['seq_class_ids'] = pad_sequence(batch['seq_class_ids'], batch_first=True, padding_value=0)
+        batch['seq_class_ids_phoneme'] = pad_sequence(batch['seq_class_ids_phoneme'], batch_first=True, padding_value=0)
 
         batch['n_time_steps'] = torch.tensor(batch['n_time_steps']) 
         batch['phone_seq_lens'] = torch.tensor(batch['phone_seq_lens'])
+        batch['phone_seq_lens_phoneme'] = torch.tensor(batch['phone_seq_lens_phoneme'])
         batch['day_indicies'] = torch.tensor(batch['day_indicies'])
         batch['transcriptions'] = torch.stack(batch['transcriptions'])
         batch['block_nums'] = torch.tensor(batch['block_nums'])
@@ -163,9 +167,11 @@ class BrainToTextDatasetS3(Dataset):
 
                 batch['input_features'].append(input_features)
                 batch['seq_class_ids'].append(torch.from_numpy(g['seq_class_ids'][:]))
+                batch['seq_class_ids_phoneme'].append(torch.from_numpy(g['seq_class_ids_phoneme'][:]))
                 batch['transcriptions'].append(torch.from_numpy(g['transcription'][:]))
                 batch['n_time_steps'].append(g.attrs['n_time_steps'])
                 batch['phone_seq_lens'].append(g.attrs['seq_len'])
+                batch['phone_seq_lens_phoneme'].append(g.attrs['seq_len_phoneme'])
                 batch['day_indicies'].append(int(day_idx))
                 batch['block_nums'].append(g.attrs['block_num'])
                 batch['trial_nums'].append(g.attrs['trial_num'])
