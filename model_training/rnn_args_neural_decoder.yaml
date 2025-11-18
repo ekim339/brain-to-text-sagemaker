@@ -42,6 +42,7 @@ model:
   
   # Dropout
   rnn_dropout: 0.4  # GRU dropout (matching NeuralDecoder)
+  rnn_trainable: true  # Make GRU layers trainable
   
   # Weight regularization
   weight_reg: 0.00001  # L2 regularization (1e-5)
@@ -52,7 +53,9 @@ model:
   
   # Input network (day-specific layers)
   input_network:
+    n_input_layers: 1
     input_layer_sizes: [256]  # 512 -> 256 projection
+    input_trainable: true
     input_layer_dropout: 0.2
     activation: 'softsign'
   
