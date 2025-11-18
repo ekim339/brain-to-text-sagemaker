@@ -75,25 +75,66 @@ training:
   num_val_batches: 200
   
   # Early stopping
-  early_stopping: false
+  early_stopping: true
   early_stopping_val_steps: 20
   
   # Composite loss configuration
-  use_composite_loss: false  # Start with diphone-only loss
-  composite_loss_alpha: 0.5
-  use_alpha_schedule: false
+  use_composite_loss: true  # Start with diphone-only loss
+  composite_loss_alpha: 0.6
+  use_alpha_schedule: true
 
 # Dataset configuration
 dataset:
   # Data paths
   data_dir: 'hdf5_data_diphone_encoded'
   
-  # Sessions (days)
+  # Sessions (days) - all 48 sessions
   sessions:
-    - 't15.2023.08.13'
-    - 't15.2023.08.18'
-    - 't15.2023.08.20'
-    - 't15.2023.08.25'
+  - t15.2023.08.11
+  - t15.2023.08.13
+  - t15.2023.08.18
+  - t15.2023.08.20
+  - t15.2023.08.25
+  - t15.2023.08.27
+  - t15.2023.09.01
+  - t15.2023.09.03
+  - t15.2023.09.24
+  - t15.2023.09.29
+  - t15.2023.10.01
+  - t15.2023.10.06
+  - t15.2023.10.08
+  - t15.2023.10.13
+  - t15.2023.10.15
+  - t15.2023.10.20
+  - t15.2023.10.22
+  - t15.2023.11.03
+  - t15.2023.11.04
+  - t15.2023.11.17
+  - t15.2023.11.19
+  - t15.2023.11.26
+  - t15.2023.12.03
+  - t15.2023.12.08
+  - t15.2023.12.10
+  - t15.2023.12.17
+  - t15.2023.12.29
+  - t15.2024.02.25
+  - t15.2024.03.03
+  - t15.2024.03.08
+  - t15.2024.03.15
+  - t15.2024.03.17
+  - t15.2024.04.25
+  - t15.2024.04.28
+  - t15.2024.05.10
+  - t15.2024.06.14
+  - t15.2024.07.19
+  - t15.2024.07.21
+  - t15.2024.07.28
+  - t15.2025.01.10
+  - t15.2025.01.12
+  - t15.2025.03.14
+  - t15.2025.03.16
+  - t15.2025.03.30
+  - t15.2025.04.13
   
   # Classes
   n_classes: 1667  # Number of diphone classes
