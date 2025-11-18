@@ -769,11 +769,11 @@ class BrainToTextDecoder_Trainer:
                 else:
                     # Original: Only diphone loss
                     log_probs = logits.log_softmax(2)
-                loss = self.ctc_loss(
+                    loss = self.ctc_loss(
                         log_probs = torch.permute(log_probs, [1, 0, 2]),
-                    targets = labels,
-                    input_lengths = adjusted_lens,
-                    target_lengths = phone_seq_lens
+                        targets = labels,
+                        input_lengths = adjusted_lens,
+                        target_lengths = phone_seq_lens
                     )
                     loss = torch.mean(loss)
             
