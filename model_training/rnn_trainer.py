@@ -360,9 +360,11 @@ class BrainToTextDecoder_Trainer:
         Returns:
             alpha: Weight for phoneme loss (0.0 to 1.0)
         """
-        if not self._get_config_value('use_alpha_schedule', False):
+        use_schedule = self._get_config_value('use_alpha_schedule', False)
+        if not use_schedule:
             # Use fixed alpha
-            return self._get_config_value('composite_loss_alpha', 0.5)
+            fixed_alpha = self._get_config_value('composite_loss_alpha', 0.5)
+            return fixed_alpha
         
         # Dynamic alpha schedule
         start_alpha = self._get_config_value('alpha_schedule_start', 0.0)

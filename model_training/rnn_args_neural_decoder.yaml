@@ -1,6 +1,31 @@
 # Configuration matching NeuralDecoder's TensorFlow implementation
 # Based on: NeuralDecoder/neuralDecoder/configs/model/gru_stack_inputNet.yaml
 
+# Runtime configuration
+gpu_number: '0'
+mode: train
+use_amp: true
+
+# Output paths
+output_dir: /opt/ml/output
+checkpoint_dir: /opt/ml/model/checkpoint
+init_from_checkpoint: false
+init_checkpoint_path: None
+
+# Checkpointing
+save_best_checkpoint: true
+save_all_val_steps: false
+save_final_model: false
+save_val_metrics: true
+
+# Logging
+batches_per_train_log: 10
+batches_per_val_step: 500
+batches_per_save: 0
+log_val_skip_logs: false
+save_val_logits: true
+save_val_data: false
+
 model:
   # Use the NeuralDecoder architecture
   use_neural_decoder_model: true
@@ -40,52 +65,44 @@ model:
   output_size: 512  # n_units * (2 if bidirectional else 1)
 
 # Training configuration
-training:
-  # Optimizer
-  optimizer: 'adam'
-  weight_decay: 0.00001  # L2 regularization via optimizer
-  
-  # Learning rate schedule (matching NeuralDecoder linear decay)
-  lr_max: 0.02  # Initial learning rate
-  lr_min: 0.0001  # Final learning rate  
-  lr_warmup_steps: 1000
-  lr_decay_steps: 94000  # Total training steps
-  lr_schedule: 'linear'  # Linear decay (PolynomialDecay with power=1)
-  lr_power: 1.0  # Linear decay
-  
-  # Day-specific learning rates
-  lr_max_day: 0.02
-  lr_min_day: 0.0001
-  
-  # Gradient clipping
-  grad_norm_clip_value: 10.0
-  
-  # Training steps
-  num_training_batches: 94000  # ~120 epochs for your dataset
-  
-  # Batch size
-  batch_size: 32
-  
-  # Mixed precision
-  use_amp: true
-  
-  # Validation
-  validation_batch_size: 64
-  validation_interval: 500
-  num_val_batches: 200
-  
-  # Early stopping
-  early_stopping: true
-  early_stopping_val_steps: 20
-  
-  # Composite loss configuration
-  use_composite_loss: true  # Enable both diphone and phoneme CTC losses
-  composite_loss_alpha: 0.6  # Static alpha (ignored if use_alpha_schedule=true)
-  use_alpha_schedule: true  # Enable dynamic curriculum learning
-  alpha_schedule_start: 0.0  # Start with diphone-only (0% phoneme)
-  alpha_schedule_end: 0.6  # End with 60% phoneme, 40% diphone
-  alpha_schedule_step_size: 0.1  # Increase alpha by 0.1
-  alpha_schedule_step_interval: 3000  # Every 3000 batches (as requested)
+# Optimizer
+optimizer: 'adam'
+weight_decay: 0.00001  # L2 regularization via optimizer
+epsilon: 1.0e-8
+weight_decay_day: 0
+seed: 42
+
+# Learning rate schedule (matching NeuralDecoder linear decay)
+lr_scheduler_type: linear
+lr_max: 0.02  # Initial learning rate
+lr_min: 0.0005  # Final learning rate  
+lr_warmup_steps: 1000
+lr_decay_steps: 94000  # Total training steps
+
+# Day-specific learning rates
+lr_max_day: 0.02
+lr_min_day: 0.0005
+lr_decay_steps_day: 94000
+lr_warmup_steps_day: 1000
+
+# Gradient clipping
+grad_norm_clip_value: 10.0
+
+# Training steps
+num_training_batches: 94000  # ~120 epochs for your dataset
+
+# Early stopping
+early_stopping: true
+early_stopping_val_steps: 20
+
+# Composite loss configuration
+use_composite_loss: true  # Enable both diphone and phoneme CTC losses
+composite_loss_alpha: 0.6  # Static alpha (ignored if use_alpha_schedule=true)
+use_alpha_schedule: true  # Enable dynamic curriculum learning
+alpha_schedule_start: 0.0  # Start with diphone-only (0% phoneme)
+alpha_schedule_end: 0.6  # End with 60% phoneme, 40% diphone
+alpha_schedule_step_size: 0.1  # Increase alpha by 0.1
+alpha_schedule_step_interval: 3000  # Every 3000 batches (as requested)
 
 # Dataset configuration
 dataset:
@@ -140,14 +157,33 @@ dataset:
   - t15.2025.03.30
   - t15.2025.04.13
   
+  # Neural features
+  neural_dim: 512
+  
+  # Batch configuration
+  batch_size: 32
+  max_seq_elements: 500
+  days_per_batch: 4
+  
   # Classes
-  n_classes: 1667  # Number of diphone classes
+  n_classes: 1681  # Number of diphone classes
   
   # Input features
   nInputFeatures: 512
   
   # Feature subset (null = use all)
   feature_subset: null
+  
+  # Data loading
+  num_dataloader_workers: 4  # parallel S3 reads
+  loader_shuffle: false
+  must_include_days: null
+  test_percentage: 0.1
+  seed: 1
+  
+  # Paths (will be overridden by S3 on SageMaker)
+  dataset_dir: /dummy
+  bad_trials_dict: null
   
   # Gaussian smoothing
   gaussian_smoothing_sigma: 0
@@ -157,21 +193,3 @@ dataset:
   gaussian_smoothing_sigma_range: [0, 2.0]
   use_random_time_warp: false
   time_warp_factor_range: [0.95, 1.05]
-
-# Logging configuration  
-logging:
-  log_interval: 10
-  verbose: true
-  
-# Checkpoint configuration
-checkpointing:
-  checkpoint_interval: 1000
-  save_best_only: false
-  
-# Random seed
-seed: 42
-
-# Device
-device: 'cuda'
-gpu_number: 0
-
