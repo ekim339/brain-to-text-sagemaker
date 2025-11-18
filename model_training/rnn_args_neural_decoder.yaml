@@ -121,7 +121,7 @@ dataset:
     smooth_data: true
     smooth_kernel_std: 2
   
-  eural_dim: 512
+  neural_dim: 512
   batch_size: 32 # Further reduced for stability (was 48)
   n_classes: 1681 # DIPHONES (was 41 phonemes)
   max_seq_elements: 500
