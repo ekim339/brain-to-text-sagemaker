@@ -33,7 +33,7 @@ model:
   
   # Input features
   n_input_features: 512
-  neural_dim: 512
+  #neural_dim: 512
   
   # GRU configuration (matching NeuralDecoder)
   n_units: 512  # Hidden units per GRU layer (was 1024 in original)
@@ -231,34 +231,8 @@ dataset:
   - 1
   - 1
   - 1
-
-  # Neural features
-  neural_dim: 512
   
-  # Batch configuration
-  batch_size: 32
-  max_seq_elements: 500
-  days_per_batch: 4
-  
-  # Classes
-  n_classes: 1681  # Number of diphone classes
-  
-  # Input features
   nInputFeatures: 512
-  
-  # Feature subset (null = use all)
-  feature_subset: null
-  
-  # Data loading
-  num_dataloader_workers: 4  # parallel S3 reads
-  loader_shuffle: false
-  must_include_days: null
-  test_percentage: 0.1
-  seed: 1
-  
-  # Paths (will be overridden by S3 on SageMaker)
-  dataset_dir: /dummy
-  bad_trials_dict: null
   
   # Gaussian smoothing
   gaussian_smoothing_sigma: 0
