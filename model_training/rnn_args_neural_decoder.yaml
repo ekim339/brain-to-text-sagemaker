@@ -22,6 +22,7 @@ save_val_metrics: true
 batches_per_train_log: 10
 batches_per_val_step: 500
 batches_per_save: 0
+log_individual_day_val_PER: true
 log_val_skip_logs: false
 save_val_logits: true
 save_val_data: false
@@ -67,8 +68,10 @@ model:
 # Training configuration
 # Optimizer
 optimizer: 'adam'
-weight_decay: 0.00001  # L2 regularization via optimizer
+beta0: 0.9
+beta1: 0.999
 epsilon: 1.0e-8
+weight_decay: 0.00001  # L2 regularization via optimizer
 weight_decay_day: 0
 seed: 42
 
@@ -106,8 +109,33 @@ alpha_schedule_step_interval: 3000  # Every 3000 batches (as requested)
 
 # Dataset configuration
 dataset:
-  # Data paths
-  data_dir: 'hdf5_data_diphone_encoded'
+  # Data transforms (augmentation)
+  data_transforms:
+    white_noise_std: 1.0
+    constant_offset_std: 0.2
+    random_walk_std: 0.0
+    random_walk_axis: -1
+    static_gain_std: 0.0
+    random_cut: 3
+    smooth_kernel_size: 100
+    smooth_data: true
+    smooth_kernel_std: 2
+  
+  eural_dim: 512
+  batch_size: 32 # Further reduced for stability (was 48)
+  n_classes: 1681 # DIPHONES (was 41 phonemes)
+  max_seq_elements: 500
+  days_per_batch: 4
+  seed: 1
+  num_dataloader_workers: 4 # parallel S3 reads (reduce to 2 if issues)
+  loader_shuffle: false
+  must_include_days: null
+  test_percentage: 0.1
+  feature_subset: null
+
+  # This will be overridden to use S3 paths
+  dataset_dir: /dummy
+  bad_trials_dict: null
   
   # Sessions (days) - all 48 sessions
   sessions:
@@ -157,6 +185,53 @@ dataset:
   - t15.2025.03.30
   - t15.2025.04.13
   
+  dataset_probability_val:
+  - 0 # no val or test data from this day
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 0 # no val or test data from this day
+  - 1
+  - 1
+  - 1
+  - 0 # no val or test data from this day
+  - 0 # no val or test data from this day
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+
   # Neural features
   neural_dim: 512
   
