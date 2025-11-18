@@ -4,7 +4,7 @@
 # Runtime configuration
 gpu_number: '0'
 mode: train
-use_amp: true
+use_amp: false  # Disabled for stability with 1681 classes (BFloat16 not supported on all GPUs)
 
 # Output paths
 output_dir: /opt/ml/output
