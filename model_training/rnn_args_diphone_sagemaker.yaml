@@ -52,13 +52,13 @@ seed: 10
 grad_norm_clip_value: 10 # Moderate clipping (allows higher LR with batch_size=16)
 
 # Composite loss: L = alpha * (phoneme_loss) + (1 - alpha) * (diphone_loss)
-use_composite_loss: false  # TEMPORARILY DISABLED for bidirectional stability testing
+use_composite_loss: true  # ENABLED - train with both diphone and phoneme losses
 composite_loss_alpha: 0.6  # Weight for phoneme loss (0.0 = only diphone, 1.0 = only phoneme) [ignored if using schedule]
 
 # Dynamic alpha schedule (curriculum learning: gradually increase phoneme weight)
 # Paper schedule: First 10 epochs diphone-only, then +0.1 every 10 epochs until 0.6
 # To match paper: estimate your epoch size (e.g., 1000-2000 batches) and multiply by 10
-use_alpha_schedule: false  # TEMPORARILY DISABLED - enable after verifying stability
+use_alpha_schedule: true  # ENABLED - use curriculum learning
 alpha_schedule_start: 0.0  # Starting alpha (0.0 = diphone-only)
 alpha_schedule_end: 0.6  # Maximum alpha (0.6 = 60% phoneme, 40% diphone)
 alpha_schedule_step_size: 0.1  # Increase alpha by this amount

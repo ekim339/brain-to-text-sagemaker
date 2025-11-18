@@ -290,19 +290,20 @@ class BrainToTextDecoder_Trainer:
         self.ctc_loss = torch.nn.CTCLoss(blank = 0, reduction = 'none', zero_infinity = False)
         
         # Log composite loss configuration
-        if self.args.get('use_composite_loss', False):
-            if self.args.get('use_alpha_schedule', False):
+        use_composite = self._get_config_value('use_composite_loss', False)
+        if use_composite:
+            if self._get_config_value('use_alpha_schedule', False):
                 # Using dynamic alpha schedule
-                start = self.args.get('alpha_schedule_start', 0.0)
-                end = self.args.get('alpha_schedule_end', 0.6)
-                step = self.args.get('alpha_schedule_step_size', 0.1)
-                interval = self.args.get('alpha_schedule_step_interval', 3000)
+                start = self._get_config_value('alpha_schedule_start', 0.0)
+                end = self._get_config_value('alpha_schedule_end', 0.6)
+                step = self._get_config_value('alpha_schedule_step_size', 0.1)
+                interval = self._get_config_value('alpha_schedule_step_interval', 3000)
                 self.logger.info(f'Using composite loss with dynamic alpha schedule:')
                 self.logger.info(f'  α starts at {start:.2f}, increases by {step:.2f} every {interval} batches, caps at {end:.2f}')
                 self.logger.info(f'  Loss: L = α*(phoneme) + (1-α)*(diphone)')
             else:
                 # Using fixed alpha
-                alpha = self.args.get('composite_loss_alpha', 0.5)
+                alpha = self._get_config_value('composite_loss_alpha', 0.5)
                 self.logger.info(f'Using composite loss with fixed α = {alpha:.2f}')
                 self.logger.info(f'  Loss: L = {alpha:.2f}*(phoneme) + {1-alpha:.2f}*(diphone)')
         else:
@@ -323,6 +324,18 @@ class BrainToTextDecoder_Trainer:
         # Send model to device 
         self.model.to(self.device)
         
+    def _get_config_value(self, key, default=None):
+        """
+        Helper to get config value from either top-level or nested under 'training'.
+        """
+        # Check top-level first
+        if key in self.args:
+            return self.args[key]
+        # Check under 'training' section
+        if isinstance(self.args.get('training'), dict) and key in self.args['training']:
+            return self.args['training'][key]
+        return default
+    
     def get_composite_loss_alpha(self, batch_idx):
         """
         Calculate the current alpha value for composite loss based on batch index.
@@ -347,15 +360,15 @@ class BrainToTextDecoder_Trainer:
         Returns:
             alpha: Weight for phoneme loss (0.0 to 1.0)
         """
-        if not self.args.get('use_alpha_schedule', False):
+        if not self._get_config_value('use_alpha_schedule', False):
             # Use fixed alpha
-            return self.args.get('composite_loss_alpha', 0.5)
+            return self._get_config_value('composite_loss_alpha', 0.5)
         
         # Dynamic alpha schedule
-        start_alpha = self.args.get('alpha_schedule_start', 0.0)
-        end_alpha = self.args.get('alpha_schedule_end', 0.6)
-        step_size = self.args.get('alpha_schedule_step_size', 0.1)
-        step_interval = self.args.get('alpha_schedule_step_interval', 3000)
+        start_alpha = self._get_config_value('alpha_schedule_start', 0.0)
+        end_alpha = self._get_config_value('alpha_schedule_end', 0.6)
+        step_size = self._get_config_value('alpha_schedule_step_size', 0.1)
+        step_interval = self._get_config_value('alpha_schedule_step_interval', 3000)
         
         # Calculate how many steps have occurred
         num_steps = batch_idx // step_interval
@@ -737,7 +750,10 @@ class BrainToTextDecoder_Trainer:
                 phoneme_loss = None
                 alpha = None  # Will be set if composite loss is used
                 
-                if self.args.get('use_composite_loss', False):
+                # Check if composite loss is enabled
+                use_composite = self._get_config_value('use_composite_loss', False)
+                
+                if use_composite:
                     # Get current alpha (may be dynamic based on schedule)
                     alpha = self.get_composite_loss_alpha(i)
                     
@@ -816,7 +832,9 @@ class BrainToTextDecoder_Trainer:
                           f'loss: {(loss.detach().item()):.2f} ')
                 
                 # If using composite loss, also log individual components and alpha
-                if self.args.get('use_composite_loss', False):
+                use_composite = self._get_config_value('use_composite_loss', False)
+                
+                if use_composite and diphone_loss is not None and phoneme_loss is not None:
                     log_msg += (f'(diphone: {diphone_loss.detach().item():.2f}, ' +
                                f'phoneme: {phoneme_loss.detach().item():.2f}, ' +
                                f'α: {alpha:.2f}) ')
