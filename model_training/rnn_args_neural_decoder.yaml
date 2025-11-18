@@ -79,9 +79,13 @@ training:
   early_stopping_val_steps: 20
   
   # Composite loss configuration
-  use_composite_loss: true  # Start with diphone-only loss
-  composite_loss_alpha: 0.6
-  use_alpha_schedule: true
+  use_composite_loss: true  # Enable both diphone and phoneme CTC losses
+  composite_loss_alpha: 0.6  # Static alpha (ignored if use_alpha_schedule=true)
+  use_alpha_schedule: true  # Enable dynamic curriculum learning
+  alpha_schedule_start: 0.0  # Start with diphone-only (0% phoneme)
+  alpha_schedule_end: 0.6  # End with 60% phoneme, 40% diphone
+  alpha_schedule_step_size: 0.1  # Increase alpha by 0.1
+  alpha_schedule_step_interval: 3000  # Every 3000 batches (as requested)
 
 # Dataset configuration
 dataset:

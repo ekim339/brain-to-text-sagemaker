@@ -164,18 +164,18 @@ class BrainToTextDecoder_Trainer:
         else:
             self.logger.info("Using original GRUDecoder architecture")
             
-            self.model = GRUDecoder(
-                neural_dim = self.args['model']['n_input_features'],
-                n_units = self.args['model']['n_units'],
-                n_days = len(self.args['dataset']['sessions']),
-                n_classes  = self.args['dataset']['n_classes'],
-                rnn_dropout = self.args['model']['rnn_dropout'], 
-                input_dropout = self.args['model']['input_network']['input_layer_dropout'], 
-                n_layers = self.args['model']['n_layers'],
+        self.model = GRUDecoder(
+            neural_dim = self.args['model']['n_input_features'],
+            n_units = self.args['model']['n_units'],
+            n_days = len(self.args['dataset']['sessions']),
+            n_classes  = self.args['dataset']['n_classes'],
+            rnn_dropout = self.args['model']['rnn_dropout'], 
+            input_dropout = self.args['model']['input_network']['input_layer_dropout'], 
+            n_layers = self.args['model']['n_layers'],
                 bidirectional = self.args['model'].get('bidirectional', False),
-                patch_size = self.args['model']['patch_size'],
-                patch_stride = self.args['model']['patch_stride'],
-            )
+            patch_size = self.args['model']['patch_size'],
+            patch_stride = self.args['model']['patch_stride'],
+        )
 
         # Call torch.compile to speed up training
         self.logger.info("Using torch.compile")
@@ -442,7 +442,7 @@ class BrainToTextDecoder_Trainer:
         # So we check if any parameter is already on CUDA
         params_on_cuda = any(p.is_cuda for p in self.model.parameters())
         use_fused = params_on_cuda and torch.cuda.is_available()
-        
+            
         optim = torch.optim.AdamW(
             param_groups,
             lr = self.args['lr_max'],
@@ -769,11 +769,11 @@ class BrainToTextDecoder_Trainer:
                 else:
                     # Original: Only diphone loss
                     log_probs = logits.log_softmax(2)
-                    loss = self.ctc_loss(
+                loss = self.ctc_loss(
                         log_probs = torch.permute(log_probs, [1, 0, 2]),
-                        targets = labels,
-                        input_lengths = adjusted_lens,
-                        target_lengths = phone_seq_lens
+                    targets = labels,
+                    input_lengths = adjusted_lens,
+                    target_lengths = phone_seq_lens
                     )
                     loss = torch.mean(loss)
             
@@ -823,7 +823,7 @@ class BrainToTextDecoder_Trainer:
                 
                 log_msg += (f'grad norm (pre-clip): {grad_norm:.2f} ' +
                            f'lr: {current_lr:.6f} ' +
-                           f'time: {train_step_duration:.3f}')
+                        f'time: {train_step_duration:.3f}')
                 
                 self.logger.info(log_msg)
 
@@ -907,7 +907,7 @@ class BrainToTextDecoder_Trainer:
 
         train_stats = {}
         train_stats['train_losses'] = train_losses
-        train_stats['val_losses'] = val_losses
+        train_stats['val_losses'] = val_losses 
         train_stats['val_DERs'] = val_DERs  # Diphone Error Rates
         train_stats['val_PERs'] = val_PERs  # Phoneme Error Rates
         train_stats['val_metrics'] = val_results
@@ -1005,7 +1005,7 @@ class BrainToTextDecoder_Trainer:
                     decoded_diphone_seq = torch.unique_consecutive(decoded_diphone_seq, dim=-1)
                     decoded_diphone_seq = decoded_diphone_seq.cpu().detach().numpy()
                     decoded_diphone_seq = np.array([i for i in decoded_diphone_seq if i != 0])
-                    
+
                     # === PHONEME PREDICTIONS (PER) ===
                     # Convert diphone logits → probs → phoneme probs → phoneme predictions
                     diphone_probs = torch.softmax(logits[iterIdx, 0 : adjusted_lens[iterIdx], :], dim=-1)  # (time, 1681)
@@ -1032,7 +1032,7 @@ class BrainToTextDecoder_Trainer:
                     true_diphone_seq = np.array(
                         labels[iterIdx][0 : phone_seq_lens[iterIdx]].cpu().detach()
                     )
-                    
+            
                     # Get ground truth phoneme sequence directly from data
                     true_phoneme_seq = np.array(
                         labels_phoneme[iterIdx][0 : phone_seq_lens_phoneme[iterIdx]].cpu().detach()
@@ -1041,7 +1041,7 @@ class BrainToTextDecoder_Trainer:
                     # Compute edit distances
                     # DER: Compare predicted diphones vs ground truth diphones
                     batch_diphone_edit_distance += F.edit_distance(decoded_diphone_seq, true_diphone_seq)
-                    
+
                     # PER: Compare predicted phonemes vs ground truth phonemes
                     batch_phoneme_edit_distance += F.edit_distance(decoded_phoneme_seq, true_phoneme_seq)
 
@@ -1050,7 +1050,7 @@ class BrainToTextDecoder_Trainer:
                     true_phoneme_seqs.append(true_phoneme_seq)
 
             day = batch['day_indicies'][0].item()
-            
+                
             # Calculate actual sequence lengths for this batch
             batch_diphone_seq_length = torch.sum(phone_seq_lens).item()  # Diphone sequence length
             batch_phoneme_seq_length = sum(len(seq) for seq in true_phoneme_seqs)  # Phoneme sequence length
