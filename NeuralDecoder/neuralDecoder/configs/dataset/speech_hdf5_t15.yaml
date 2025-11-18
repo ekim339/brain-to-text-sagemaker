@@ -1,0 +1,121 @@
+name: speech_hdf5
+sessions:
+  - t15.2023.08.11
+  - t15.2023.08.13
+  - t15.2023.08.18
+  - t15.2023.08.20
+  - t15.2023.08.25
+  - t15.2023.08.27
+  - t15.2023.09.01
+  - t15.2023.09.03
+  - t15.2023.09.24
+  - t15.2023.09.29
+  - t15.2023.10.01
+  - t15.2023.10.06
+  - t15.2023.10.08
+  - t15.2023.10.13
+  - t15.2023.10.15
+  - t15.2023.10.20
+  - t15.2023.10.22
+  - t15.2023.11.03
+  - t15.2023.11.04
+  - t15.2023.11.17
+  - t15.2023.11.19
+  - t15.2023.11.26
+  - t15.2023.12.03
+  - t15.2023.12.08
+  - t15.2023.12.10
+  - t15.2023.12.17
+  - t15.2023.12.29
+  - t15.2024.02.25
+  - t15.2024.03.03
+  - t15.2024.03.08
+  - t15.2024.03.15
+  - t15.2024.03.17
+  - t15.2024.04.25
+  - t15.2024.04.28
+  - t15.2024.05.10
+  - t15.2024.06.14
+  - t15.2024.07.19
+  - t15.2024.07.21
+  - t15.2024.07.28
+  - t15.2025.01.10
+  - t15.2025.01.12
+  - t15.2025.03.14
+  - t15.2025.03.16
+  - t15.2025.03.30
+  - t15.2025.04.13
+
+# Map each dataset to a layer (0-44 for 45 sessions)
+datasetToLayerMap: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]
+
+# Equal probability for each session (1/45 = ~0.0222)
+datasetProbability: [0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222]
+
+datasetProbabilityVal: [0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222, 0.0222]
+
+# Data directories - all sessions point to the same parent directory
+# The code will append session name and 'train'/'test' subdirectory automatically
+dataDir:
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+  - /Users/eugenekim/b2txt25/speechBCI/data/tfRecords/hdf5_data_encoded
+
+syntheticDataDir:
+syntheticMixingRate: 0.0
+whiteNoiseSD: 1.0
+constantOffsetSD: 0.2
+randomWalkSD: 0.0
+nInputFeatures: 256
+timWarpFactor: 0.0
+staticGainSD: 0.0
+nClasses: 40
+maxSeqElements: 500
+
+# Dataset shuffle buffer size
+bufferSize: 1024
+
+copyInputLayer:
+

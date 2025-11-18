@@ -1,0 +1,132 @@
+# Configuration matching NeuralDecoder's TensorFlow implementation
+# Based on: NeuralDecoder/neuralDecoder/configs/model/gru_stack_inputNet.yaml
+
+model:
+  # Use the NeuralDecoder architecture
+  use_neural_decoder_model: true
+  
+  # Input features
+  n_input_features: 512
+  neural_dim: 512
+  
+  # GRU configuration (matching NeuralDecoder)
+  n_units: 512  # Hidden units per GRU layer (was 1024 in original)
+  n_layers: 5
+  bidirectional: false
+  
+  # Dropout
+  rnn_dropout: 0.4  # GRU dropout (matching NeuralDecoder)
+  
+  # Weight regularization
+  weight_reg: 0.00001  # L2 regularization (1e-5)
+  
+  # Patching/Stacking configuration (matching NeuralDecoder)
+  patch_size: 14  # kernel_size in TF version
+  patch_stride: 4  # strides in TF version
+  
+  # Input network (day-specific layers)
+  input_network:
+    input_layer_sizes: [256]  # 512 -> 256 projection
+    input_layer_dropout: 0.2
+    activation: 'softsign'
+  
+  # Initial hidden state
+  h0: 'learned'  # Use learned initial states
+  
+  # Subsampling (not used by default)
+  subsample_factor: 1
+  
+  # Output size (calculated automatically)
+  output_size: 512  # n_units * (2 if bidirectional else 1)
+
+# Training configuration
+training:
+  # Optimizer
+  optimizer: 'adam'
+  weight_decay: 0.00001  # L2 regularization via optimizer
+  
+  # Learning rate schedule (matching NeuralDecoder linear decay)
+  lr_max: 0.02  # Initial learning rate
+  lr_min: 0.0001  # Final learning rate  
+  lr_warmup_steps: 1000
+  lr_decay_steps: 94000  # Total training steps
+  lr_schedule: 'linear'  # Linear decay (PolynomialDecay with power=1)
+  lr_power: 1.0  # Linear decay
+  
+  # Day-specific learning rates
+  lr_max_day: 0.02
+  lr_min_day: 0.0001
+  
+  # Gradient clipping
+  grad_norm_clip_value: 10.0
+  
+  # Training steps
+  num_training_batches: 94000  # ~120 epochs for your dataset
+  
+  # Batch size
+  batch_size: 32
+  
+  # Mixed precision
+  use_amp: true
+  
+  # Validation
+  validation_batch_size: 64
+  validation_interval: 500
+  num_val_batches: 200
+  
+  # Early stopping
+  early_stopping: false
+  early_stopping_val_steps: 20
+  
+  # Composite loss configuration
+  use_composite_loss: false  # Start with diphone-only loss
+  composite_loss_alpha: 0.5
+  use_alpha_schedule: false
+
+# Dataset configuration
+dataset:
+  # Data paths
+  data_dir: 'hdf5_data_diphone_encoded'
+  
+  # Sessions (days)
+  sessions:
+    - 't15.2023.08.13'
+    - 't15.2023.08.18'
+    - 't15.2023.08.20'
+    - 't15.2023.08.25'
+  
+  # Classes
+  n_classes: 1667  # Number of diphone classes
+  
+  # Input features
+  nInputFeatures: 512
+  
+  # Feature subset (null = use all)
+  feature_subset: null
+  
+  # Gaussian smoothing
+  gaussian_smoothing_sigma: 0
+  
+  # Data augmentation
+  use_gaussian_smoothing: false
+  gaussian_smoothing_sigma_range: [0, 2.0]
+  use_random_time_warp: false
+  time_warp_factor_range: [0.95, 1.05]
+
+# Logging configuration  
+logging:
+  log_interval: 10
+  verbose: true
+  
+# Checkpoint configuration
+checkpointing:
+  checkpoint_interval: 1000
+  save_best_only: false
+  
+# Random seed
+seed: 42
+
+# Device
+device: 'cuda'
+gpu_number: 0
+

@@ -34,7 +34,7 @@ early_stopping_val_steps: 20
 
 num_training_batches: 150000 # increased for diphone training
 lr_scheduler_type: cosine
-lr_max: 0.005 # VERY low for bidirectional stability (2× params = more sensitive)
+lr_max: 0.001 # VERY low for bidirectional stability (2× params = more sensitive)
 lr_min: 0.0005
 lr_decay_steps: 150000
 lr_warmup_steps: 5000 # Long warmup for bidirectional stability
@@ -49,18 +49,20 @@ epsilon: 1.0e-8  # Fixed! Was 0.1 which caused NaN gradients
 weight_decay: 0.0005 # Reduced for stability (was 0.002)
 weight_decay_day: 0
 seed: 10
-grad_norm_clip_value: 5 # Stricter clipping (was 10)
+grad_norm_clip_value: 10 # Moderate clipping (allows higher LR with batch_size=16)
 
 # Composite loss: L = alpha * (phoneme_loss) + (1 - alpha) * (diphone_loss)
 use_composite_loss: false  # TEMPORARILY DISABLED for bidirectional stability testing
 composite_loss_alpha: 0.6  # Weight for phoneme loss (0.0 = only diphone, 1.0 = only phoneme) [ignored if using schedule]
 
 # Dynamic alpha schedule (curriculum learning: gradually increase phoneme weight)
+# Paper schedule: First 10 epochs diphone-only, then +0.1 every 10 epochs until 0.6
+# To match paper: estimate your epoch size (e.g., 1000-2000 batches) and multiply by 10
 use_alpha_schedule: false  # TEMPORARILY DISABLED - enable after verifying stability
 alpha_schedule_start: 0.0  # Starting alpha (0.0 = diphone-only)
 alpha_schedule_end: 0.6  # Maximum alpha (0.6 = 60% phoneme, 40% diphone)
 alpha_schedule_step_size: 0.1  # Increase alpha by this amount
-alpha_schedule_step_interval: 3000  # Increase alpha every N batches
+alpha_schedule_step_interval: 10000  # Paper uses ~10 epochs; adjust based on your epoch size
 
 batches_per_train_log: 200
 batches_per_val_step: 1500 # more frequent validation

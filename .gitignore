@@ -11,3 +11,5 @@ __pycache__/
 
 # ignore jupyter checkpoints
 .ipynb_checkpoints/
+
+*.md

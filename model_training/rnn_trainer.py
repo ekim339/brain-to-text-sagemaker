@@ -25,6 +25,7 @@ torch.backends.cudnn.deterministic = True # makes training more reproducible
 torch._dynamo.config.cache_size_limit = 64
 
 from rnn_model import GRUDecoder
+from neural_decoder_model import GRUDecoder_NeuralDecoder_WithInputNet
 
 class BrainToTextDecoder_Trainer:
     """
@@ -132,19 +133,49 @@ class BrainToTextDecoder_Trainer:
             if torch.cuda.is_available():
                 torch.cuda.manual_seed_all(self.args['seed'])  # Set CUDA seed for all GPUs
 
-        # Initialize the model 
-        self.model = GRUDecoder(
-            neural_dim = self.args['model']['n_input_features'],
-            n_units = self.args['model']['n_units'],
-            n_days = len(self.args['dataset']['sessions']),
-            n_classes  = self.args['dataset']['n_classes'],
-            rnn_dropout = self.args['model']['rnn_dropout'], 
-            input_dropout = self.args['model']['input_network']['input_layer_dropout'], 
-            n_layers = self.args['model']['n_layers'],
-            bidirectional = self.args['model'].get('bidirectional', False),
-            patch_size = self.args['model']['patch_size'],
-            patch_stride = self.args['model']['patch_stride'],
-        )
+        # Initialize the model (choose between original and NeuralDecoder architecture)
+        use_neural_decoder = self.args['model'].get('use_neural_decoder_model', False)
+        
+        if use_neural_decoder:
+            self.logger.info("Using NeuralDecoder architecture (PyTorch port from TensorFlow)")
+            
+            # Prepare stack_kwargs for patching
+            stack_kwargs = None
+            if self.args['model']['patch_size'] > 0:
+                stack_kwargs = {
+                    'kernel_size': self.args['model']['patch_size'],
+                    'strides': self.args['model']['patch_stride']
+                }
+            
+            self.model = GRUDecoder_NeuralDecoder_WithInputNet(
+                neural_dim=self.args['model']['n_input_features'],
+                n_days=len(self.args['dataset']['sessions']),
+                input_layer_sizes=self.args['model']['input_network']['input_layer_sizes'],
+                gru_units=self.args['model']['n_units'],
+                n_classes=self.args['dataset']['n_classes'],
+                n_gru_layers=self.args['model']['n_layers'],
+                input_activation=self.args['model']['input_network'].get('activation', 'softsign'),
+                input_dropout=self.args['model']['input_network']['input_layer_dropout'],
+                rnn_dropout=self.args['model']['rnn_dropout'],
+                weight_reg=self.args['model'].get('weight_reg', 1e-5),
+                bidirectional=self.args['model'].get('bidirectional', False),
+                stack_kwargs=stack_kwargs,
+            )
+        else:
+            self.logger.info("Using original GRUDecoder architecture")
+            
+            self.model = GRUDecoder(
+                neural_dim = self.args['model']['n_input_features'],
+                n_units = self.args['model']['n_units'],
+                n_days = len(self.args['dataset']['sessions']),
+                n_classes  = self.args['dataset']['n_classes'],
+                rnn_dropout = self.args['model']['rnn_dropout'], 
+                input_dropout = self.args['model']['input_network']['input_layer_dropout'], 
+                n_layers = self.args['model']['n_layers'],
+                bidirectional = self.args['model'].get('bidirectional', False),
+                patch_size = self.args['model']['patch_size'],
+                patch_stride = self.args['model']['patch_stride'],
+            )
 
         # Call torch.compile to speed up training
         self.logger.info("Using torch.compile")
