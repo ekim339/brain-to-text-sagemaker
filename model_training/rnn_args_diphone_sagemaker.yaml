@@ -62,7 +62,7 @@ use_alpha_schedule: true  # ENABLED - use curriculum learning
 alpha_schedule_start: 0.0  # Starting alpha (0.0 = diphone-only)
 alpha_schedule_end: 0.6  # Maximum alpha (0.6 = 60% phoneme, 40% diphone)
 alpha_schedule_step_size: 0.1  # Increase alpha by this amount
-alpha_schedule_step_interval: 10000  # Paper uses ~10 epochs; adjust based on your epoch size
+alpha_schedule_step_interval: 3000  # Paper uses ~10 epochs; adjust based on your epoch size
 
 batches_per_train_log: 200
 batches_per_val_step: 1500 # more frequent validation

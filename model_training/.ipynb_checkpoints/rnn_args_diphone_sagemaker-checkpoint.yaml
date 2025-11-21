@@ -4,6 +4,7 @@ model:
   rnn_dropout: 0.5 # dropout rate for the GRU layers
   rnn_trainable: true
   n_layers: 5 # number of GRU layers
+  bidirectional: true # Set to true for bidirectional RNN (doubles params, no real-time use)
   patch_size: 14 # size of the input patches
   patch_stride: 4 # stride for the input patches
 
@@ -16,7 +17,7 @@ model:
 
 gpu_number: '0' # SageMaker sets this automatically
 mode: train
-use_amp: true # mixed precision training for 2-3x speedup
+use_amp: false # Disabled for stability with 1681 classes (float16 can be unstable)
 
 # These will be overridden by train_model_sagemaker.py
 output_dir: /opt/ml/output
@@ -28,27 +29,40 @@ save_best_checkpoint: true
 save_all_val_steps: false
 save_final_model: false
 save_val_metrics: true
-early_stopping: false
+early_stopping: true
 early_stopping_val_steps: 20
 
 num_training_batches: 150000 # increased for diphone training
 lr_scheduler_type: cosine
-lr_max: 0.004 # slightly reduced for stability
-lr_min: 0.0001
+lr_max: 0.001 # VERY low for bidirectional stability (2× params = more sensitive)
+lr_min: 0.0005
 lr_decay_steps: 150000
-lr_warmup_steps: 2000 # longer warmup
-lr_max_day: 0.004
-lr_min_day: 0.0001
+lr_warmup_steps: 5000 # Long warmup for bidirectional stability
+lr_max_day: 0.005 # reduced to match lr_max
+lr_min_day: 0.0005
 lr_decay_steps_day: 150000
-lr_warmup_steps_day: 2000
+lr_warmup_steps_day: 5000 # match main warmup steps
 
 beta0: 0.9
 beta1: 0.999
-epsilon: 0.1
-weight_decay: 0.002 # increased regularization
+epsilon: 1.0e-8  # Fixed! Was 0.1 which caused NaN gradients
+weight_decay: 0.0005 # Reduced for stability (was 0.002)
 weight_decay_day: 0
 seed: 10
-grad_norm_clip_value: 10
+grad_norm_clip_value: 10 # Moderate clipping (allows higher LR with batch_size=16)
+
+# Composite loss: L = alpha * (phoneme_loss) + (1 - alpha) * (diphone_loss)
+use_composite_loss: true  # ENABLED - train with both diphone and phoneme losses
+composite_loss_alpha: 0.6  # Weight for phoneme loss (0.0 = only diphone, 1.0 = only phoneme) [ignored if using schedule]
+
+# Dynamic alpha schedule (curriculum learning: gradually increase phoneme weight)
+# Paper schedule: First 10 epochs diphone-only, then +0.1 every 10 epochs until 0.6
+# To match paper: estimate your epoch size (e.g., 1000-2000 batches) and multiply by 10
+use_alpha_schedule: true  # ENABLED - use curriculum learning
+alpha_schedule_start: 0.0  # Starting alpha (0.0 = diphone-only)
+alpha_schedule_end: 0.6  # Maximum alpha (0.6 = 60% phoneme, 40% diphone)
+alpha_schedule_step_size: 0.1  # Increase alpha by this amount
+alpha_schedule_step_interval: 3000  # Paper uses ~10 epochs; adjust based on your epoch size
 
 batches_per_train_log: 200
 batches_per_val_step: 1500 # more frequent validation
@@ -72,7 +86,7 @@ dataset:
     smooth_kernel_std: 2
 
   neural_dim: 512
-  batch_size: 48 # reduced from 64 for larger output layer
+  batch_size: 32 # Further reduced for stability (was 48)
   n_classes: 1681 # DIPHONES (was 41 phonemes)
   max_seq_elements: 500
   days_per_batch: 4
