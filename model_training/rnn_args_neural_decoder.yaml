@@ -19,8 +19,8 @@ save_final_model: false
 save_val_metrics: true
 
 # Logging
-batches_per_train_log: 200
-batches_per_val_step: 1500
+batches_per_train_log: 10
+batches_per_val_step: 500
 batches_per_save: 0
 log_individual_day_val_PER: true
 log_val_skip_logs: false
@@ -38,7 +38,7 @@ model:
   # GRU configuration (matching NeuralDecoder)
   n_units: 512  # Hidden units per GRU layer (was 1024 in original)
   n_layers: 5
-  bidirectional: true
+  bidirectional: false
   
   # Dropout
   rnn_dropout: 0.4  # GRU dropout (matching NeuralDecoder)
@@ -80,13 +80,13 @@ seed: 42
 
 # Learning rate schedule (matching NeuralDecoder linear decay)
 lr_scheduler_type: linear
-lr_max: 0.005  # Initial learning rate
+lr_max: 0.02  # Initial learning rate
 lr_min: 0.0005  # Final learning rate  
 lr_warmup_steps: 1000
 lr_decay_steps: 94000  # Total training steps
 
 # Day-specific learning rates
-lr_max_day: 0.005
+lr_max_day: 0.02
 lr_min_day: 0.0005
 lr_decay_steps_day: 94000
 lr_warmup_steps_day: 1000
@@ -109,15 +109,6 @@ alpha_schedule_start: 0.0  # Start with diphone-only (0% phoneme)
 alpha_schedule_end: 0.6  # End with 60% phoneme, 40% diphone
 alpha_schedule_step_size: 0.1  # Increase alpha by 0.1
 alpha_schedule_step_interval: 3000  # Every 3000 batches (as requested)
-
-batches_per_train_log: 200
-batches_per_val_step: 1500 # more frequent validation
-
-batches_per_save: 0
-log_individual_day_val_PER: true
-log_val_skip_logs: false
-save_val_logits: true
-save_val_data: false
 
 # Dataset configuration
 dataset:
