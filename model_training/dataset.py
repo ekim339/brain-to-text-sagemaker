@@ -22,7 +22,9 @@ class BrainToTextDataset(Dataset):
             days_per_batch = 1, 
             random_seed = -1,
             must_include_days = None,
-            feature_subset = None
+            feature_subset = None,
+            preprocessing = False,
+            bin_size = 2
             ): 
         '''
         trial_indicies:  (dict)      - dictionary with day numbers as keys and lists of trial indices as values
@@ -59,6 +61,8 @@ class BrainToTextDataset(Dataset):
         self.n_days = len(trial_indicies.keys())
 
         self.feature_subset = feature_subset
+        self.preprocessing = preprocessing  # Enable/disable preprocessing (binning)
+        self.bin_size = bin_size  # Time-binning size (only used if preprocessing=True)
 
         # Calculate total number of trials in the dataset
         for d in trial_indicies:
@@ -161,6 +165,11 @@ class BrainToTextDataset(Dataset):
         batch['transcriptions'] = torch.stack(batch['transcriptions'])
         batch['block_nums'] = torch.tensor(batch['block_nums'])
         batch['trial_nums'] = torch.tensor(batch['trial_nums'])
+
+        # Apply time-binning if preprocessing is enabled
+        if self.preprocessing:
+            from preprocessing_utils import apply_binning_to_batch
+            batch = apply_binning_to_batch(batch, self.bin_size, update_time_steps=True)
 
         return batch
     

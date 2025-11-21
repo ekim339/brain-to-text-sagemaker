@@ -101,6 +101,8 @@ dataset:
   must_include_days: null
   test_percentage: 0.1
   feature_subset: null
+  preprocessing: true
+  bin_size: 2
 
   # This will be overridden to use S3 paths
   dataset_dir: /dummy

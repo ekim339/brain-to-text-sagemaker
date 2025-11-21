@@ -230,6 +230,14 @@ class BrainToTextDecoder_Trainer:
         if ('feature_subset' in self.args['dataset']) and self.args['dataset']['feature_subset'] != None: 
             feature_subset = self.args['dataset']['feature_subset']
             self.logger.info(f'Using only a subset of features: {feature_subset}')
+        
+        # Preprocessing (time-binning) configuration
+        preprocessing = self.args['dataset'].get('preprocessing', False)
+        bin_size = self.args['dataset'].get('bin_size', 2)  # Default bin_size when preprocessing is enabled
+        if preprocessing:
+            self.logger.info(f'Preprocessing enabled: Applying time-binning with bin_size={bin_size}')
+        else:
+            self.logger.info('Preprocessing disabled: No time-binning will be applied')
             
         # train dataset and dataloader
         self.train_dataset = BrainToTextDataset(
@@ -240,7 +248,9 @@ class BrainToTextDecoder_Trainer:
             batch_size = self.args['dataset']['batch_size'],
             must_include_days = None,
             random_seed = self.args['dataset']['seed'],
-            feature_subset = feature_subset
+            feature_subset = feature_subset,
+            preprocessing = preprocessing,
+            bin_size = bin_size
             )
         self.train_loader = DataLoader(
             self.train_dataset,
@@ -259,7 +269,9 @@ class BrainToTextDecoder_Trainer:
             batch_size = self.args['dataset']['batch_size'],
             must_include_days = None,
             random_seed = self.args['dataset']['seed'],
-            feature_subset = feature_subset   
+            feature_subset = feature_subset,
+            preprocessing = preprocessing,
+            bin_size = bin_size
             )
         self.val_loader = DataLoader(
             self.val_dataset,
