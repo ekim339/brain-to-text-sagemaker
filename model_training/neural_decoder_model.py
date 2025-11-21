@@ -141,13 +141,14 @@ class GRUDecoder_NeuralDecoder(nn.Module):
         # Pass through RNN layers
         new_states = []
         for layer_idx, rnn in enumerate(self.rnn_layers):
-            # Get state for this layer
-            if self.bidirectional:
-                # State shape: (2, batch_size, hidden_size) for bidirectional
+            # Get state for this layer (already in correct shape from _get_initial_states)
+            if states is not None:
                 state = states[layer_idx]
+                # Ensure contiguous (PyTorch GRU requirement)
+                if not state.is_contiguous():
+                    state = state.contiguous()
             else:
-                # State shape: (1, batch_size, hidden_size) for unidirectional
-                state = states[layer_idx].unsqueeze(0) if states[layer_idx].dim() == 2 else states[layer_idx]
+                state = None
             
             # Forward through RNN
             x, h = rnn(x, state)
@@ -209,15 +210,16 @@ class GRUDecoder_NeuralDecoder(nn.Module):
         if self.bidirectional:
             # For bidirectional: each layer needs (2, batch, hidden)
             for _ in range(self.n_layers):
-                forward_state = self.init_states[0].expand(batch_size, -1)
-                backward_state = self.init_states[1].expand(batch_size, -1)
+                forward_state = self.init_states[0].expand(batch_size, -1).contiguous()
+                backward_state = self.init_states[1].expand(batch_size, -1).contiguous()
                 # Stack to (2, batch, hidden)
-                state = torch.stack([forward_state, backward_state], dim=0)
+                state = torch.stack([forward_state, backward_state], dim=0).contiguous()
                 states.append(state)
         else:
             # For unidirectional: each layer needs (1, batch, hidden)
             for _ in range(self.n_layers):
-                state = self.init_states.expand(batch_size, -1)
+                # Expand and add dimension: (1, batch, hidden)
+                state = self.init_states.expand(batch_size, -1).unsqueeze(0).contiguous()
                 states.append(state)
         
         return states
