@@ -43,6 +43,11 @@ lr_min_day: 0.0005
 lr_decay_steps_day: 150000
 lr_warmup_steps_day: 5000 # match main warmup steps
 
+# lr_scheduler_type: step  # Use 'step' for StepLR
+# lr_max: 0.001  # Starting learning rate
+# lr_step_size: 50000  # Decay every 50,000 steps
+# lr_decay_factor: 0.1  # Multiply LR by 0.1 at each step
+
 beta0: 0.9
 beta1: 0.999
 epsilon: 1.0e-8  # Fixed! Was 0.1 which caused NaN gradients

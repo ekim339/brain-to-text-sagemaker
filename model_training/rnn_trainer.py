@@ -283,7 +283,28 @@ class BrainToTextDecoder_Trainer:
             )
         elif self.args['lr_scheduler_type'] == 'cosine':
             self.learning_rate_scheduler = self.create_cosine_lr_scheduler(self.optimizer)
-        
+        elif self.args['lr_scheduler_type'] == 'step':
+            # StepLR: Decays by lr_decay_factor every lr_step_size steps
+            step_size = self.args.get('lr_step_size', self.args.get('lr_decay_steps', 30000))
+            gamma = self.args.get('lr_decay_factor', 0.1)
+            self.learning_rate_scheduler = torch.optim.lr_scheduler.StepLR(
+                optimizer=self.optimizer,
+                step_size=step_size,
+                gamma=gamma,
+            )
+        elif self.args['lr_scheduler_type'] == 'multistep':
+            # MultiStepLR: Decays by lr_decay_factor at specific milestones
+            milestones = self.args.get('lr_milestones', None)
+            if milestones is None:
+                # Default: decay at 1/3, 2/3 of training
+                total_steps = self.args.get('lr_decay_steps', self.args.get('num_training_batches', 150000))
+                milestones = [total_steps // 3, 2 * total_steps // 3]
+            gamma = self.args.get('lr_decay_factor', 0.1)
+            self.learning_rate_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+                optimizer=self.optimizer,
+                milestones=milestones,
+                gamma=gamma,
+            )
         else:
             raise ValueError(f"Invalid learning rate scheduler type: {self.args['lr_scheduler_type']}")
         
